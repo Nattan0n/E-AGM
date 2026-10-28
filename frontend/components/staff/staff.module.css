@@ -321,3 +321,12 @@ button.item:hover { background: #f8fafc; }
 .qHero .qFacts, .qHero .qFacts b { color: #fff; }
 .qHero .qFacts > div { color: rgba(255,255,255,.8); }
 .qHero .tcGreen { color: #bbf7d0; } .qHero .tcAmber { color: #fde68a; }
+
+/* staggered entrance for staff pages */
+@keyframes stackIn { from { opacity: 0; transform: translateY(10px); } }
+.stack > *, .list > * { animation: stackIn .38s cubic-bezier(.2, .8, .2, 1) backwards; }
+.stack > :nth-child(1), .list > :nth-child(1) { animation-delay: .03s; } .stack > :nth-child(2), .list > :nth-child(2) { animation-delay: .07s; }
+.stack > :nth-child(3), .list > :nth-child(3) { animation-delay: .11s; } .stack > :nth-child(4), .list > :nth-child(4) { animation-delay: .15s; }
+.stack > :nth-child(5), .list > :nth-child(5) { animation-delay: .19s; } .stack > :nth-child(6), .list > :nth-child(6) { animation-delay: .23s; }
+.stack > :nth-child(n+7), .list > :nth-child(n+7) { animation-delay: .27s; }
+@media (prefers-reduced-motion: reduce) { .stack > *, .list > * { animation: none; } }
