@@ -1,0 +1,25 @@
+.sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.ballot { background: #fff; border: 1.5px dashed #94a3b8; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; color: #0f172a; break-inside: avoid; }
+.ballot header { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; }
+.ballot header b { color: #1e3a8a; }
+.who { display: grid; grid-template-columns: 1.6fr auto auto; gap: 14px; }
+.who small, .agenda small { display: block; font-size: 11px; color: #64748b; }
+.who b { font-size: 14px; white-space: nowrap; }
+.who > div:first-child b { white-space: normal; }
+.agenda { background: #f1f5f9; border-radius: 8px; padding: 10px 12px; }
+.agenda b { font-size: 15px; line-height: 1.4; }
+.boxes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 14px; }
+.boxes div { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
+.boxes i { width: 22px; height: 22px; border: 2px solid #0f172a; border-radius: 4px; flex-shrink: 0; }
+.ballot footer { font-size: 11px; color: #475569; margin-top: 4px; }
+
+@media print {
+  :global(body) { background: #fff !important; }
+  :global(#app-root) { opacity: 1 !important; }
+  :global(aside), :global(header[class*="top"]), :global(nav), .noprint { display: none !important; }
+  :global(main) { padding: 0 !important; margin: 0 !important; }
+  .sheets { display: block; }
+  .ballot { border: 2px solid #0f172a; border-radius: 0; margin: 0 0 12mm; page-break-after: always; padding: 14mm; }
+  .ballot header { display: flex; }
+  .ballot:last-child { page-break-after: auto; }
+}

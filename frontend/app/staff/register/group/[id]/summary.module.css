@@ -1,0 +1,20 @@
+.sheet { display: none; }
+
+@media print {
+  :global(body) { background: #fff !important; }
+  :global(#app-root) { opacity: 1 !important; }
+  :global(body) * { visibility: hidden; }
+  .sheet, .sheet * { visibility: visible; }
+  .sheet { display: block; position: absolute; left: 0; top: 0; width: 100%; color: #0f172a; font-size: 13px; padding: 10mm; }
+  .sheet h1 { font-size: 20px; color: #1e3a8a; margin-bottom: 2px; }
+  .sub { color: #475569; margin-bottom: 14px; }
+  .meta { display: grid; grid-template-columns: repeat(3, auto); gap: 8px 24px; justify-content: start; margin: 10px 0 14px; }
+  .meta small { display: block; color: #64748b; font-size: 11px; }
+  .sheet table { width: 100%; border-collapse: collapse; }
+  .sheet th, .sheet td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; }
+  .sheet th { background: #eef2fb; }
+  .sheet th.num, .sheet td.num { text-align: right; }
+  .sheet tfoot td { font-weight: 700; }
+  .sign { display: flex; gap: 40px; margin-top: 36px; }
+  .sign div { flex: 1; border-top: 1px solid #0f172a; padding-top: 4px; text-align: center; font-size: 12px; }
+}

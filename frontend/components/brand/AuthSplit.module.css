@@ -1,0 +1,32 @@
+/* Desktop split screen: brand panel left, form card right (mirrors app/staff/login). */
+.root { min-height: 100vh; min-height: 100dvh; display: flex; align-items: stretch; max-width: 1600px; margin: 0 auto; width: 100%; }
+
+.brand { position: relative; flex: 1 1 50%; color: #fff; display: flex; align-items: center; padding: 0 clamp(48px, 7vw, 120px); }
+.brandIn { display: flex; flex-direction: column; align-items: flex-start; max-width: 560px; }
+.logo { margin-bottom: 26px; }
+.brand h1 { font-size: clamp(56px, 6vw, 84px); font-weight: 700; letter-spacing: -.01em; line-height: 1; }
+.company { font-size: 18px; opacity: .95; margin-top: 14px; font-weight: 500; }
+.tag { font-size: 15px; opacity: .78; margin-top: 4px; }
+.lead { font-size: 15.5px; line-height: 1.7; opacity: .88; margin-top: 26px; max-width: 480px; }
+.feats { display: grid; gap: 12px; margin-top: 30px; list-style: none; }
+.feats li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; }
+.ic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); backdrop-filter: blur(6px); flex-shrink: 0; }
+.brandFoot { position: absolute; left: clamp(48px, 7vw, 120px); bottom: 28px; font-size: 12px; opacity: .6; }
+
+.panel { flex: 1 1 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 16px; }
+.card { width: 100%; max-width: 520px; padding: 38px 40px 32px; border-radius: 26px; background: rgba(255,255,255,.94);
+  box-shadow: 0 30px 80px rgba(5,20,70,.35), 0 2px 6px rgba(5,20,70,.12); }
+.support { font-size: 12px; color: rgba(255,255,255,.75); text-align: center; }
+
+/* ===== load animation (same as staff login) ===== */
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-22px); } }
+@keyframes pop { from { opacity: 0; transform: scale(.88); } }
+.logo { animation: pop .6s cubic-bezier(.2, .9, .3, 1.2) backwards; }
+.brandIn > :not(.logo) { animation: slideIn .7s cubic-bezier(.2, .8, .2, 1) backwards; }
+.brandIn > h1 { animation-delay: .12s; } .brandIn > .company { animation-delay: .2s; } .brandIn > .tag { animation-delay: .26s; }
+.brandIn > .lead { animation-delay: .34s; } .brandIn > .feats { animation-delay: .42s; }
+.feats li { animation: slideIn .6s cubic-bezier(.2, .8, .2, 1) backwards; }
+.feats li:nth-child(1) { animation-delay: .5s; } .feats li:nth-child(2) { animation-delay: .58s; } .feats li:nth-child(3) { animation-delay: .66s; } .feats li:nth-child(4) { animation-delay: .74s; }
+.card { animation: rise .7s cubic-bezier(.2, .8, .2, 1) .25s backwards; }
+.support { animation: rise .7s ease-out .7s backwards; }

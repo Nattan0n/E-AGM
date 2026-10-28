@@ -1,0 +1,78 @@
+/* Adapted from D:\gradients-bg (animated morphing gradients) - palette moved to E-AGM brand colours. */
+.bg {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  --circle-size: 80%;
+}
+.defs { position: fixed; top: 0; left: 0; width: 0; height: 0; }
+
+/* dark: navy -> blue, vivid blobs blended hard-light (hero pages) */
+.dark {
+  background: linear-gradient(40deg, #0f2a6b, #1e3a8a 55%, #1d4ed8);
+  --color1: 37, 99, 235;    /* brand blue */
+  --color2: 99, 102, 241;   /* indigo */
+  --color3: 6, 182, 212;    /* brand cyan */
+  --color4: 30, 64, 175;    /* deep blue */
+  --color5: 56, 189, 248;   /* sky */
+  --color-interactive: 125, 211, 252;
+  --blending: hard-light;
+  --o1: .8; --o4: .7; --oi: .6;
+}
+/* light: pale sky wash with soft blobs, normal blending so text/cards keep contrast */
+.light, .darkDesktop {
+  background: linear-gradient(160deg, #e8f0fc, #dce8fa 60%, #e4ecfa);
+  --color1: 99, 130, 246;   /* soft indigo-blue */
+  --color2: 167, 139, 250;  /* lavender */
+  --color3: 56, 189, 248;   /* sky */
+  --color4: 147, 180, 253;
+  --color5: 186, 214, 250;
+  --color-interactive: 147, 180, 253;
+  --blending: normal;
+  --o1: .5; --o4: .42; --oi: .36;
+}
+/* dark only from 1024px up (login / register split screens); light on phones */
+@media (min-width: 1024px) {
+  .darkDesktop {
+  background: linear-gradient(40deg, #0f2a6b, #1e3a8a 55%, #1d4ed8);
+  --color1: 37, 99, 235;    /* brand blue */
+  --color2: 99, 102, 241;   /* indigo */
+  --color3: 6, 182, 212;    /* brand cyan */
+  --color4: 30, 64, 175;    /* deep blue */
+  --color5: 56, 189, 248;   /* sky */
+  --color-interactive: 125, 211, 252;
+  --blending: hard-light;
+  --o1: .8; --o4: .7; --oi: .6;
+  }
+}
+
+.container { width: 100%; height: 100%; filter: blur(40px); }
+@media (min-width: 1024px) and (hover: hover) { .container { filter: url(#eagm-goo) blur(40px); } }
+
+.g1, .g2, .g3, .g4, .g5, .interactive { position: absolute; mix-blend-mode: var(--blending); will-change: transform; }
+.g1 { background: radial-gradient(circle at center, rgba(var(--color1), var(--o1)) 0, rgba(var(--color1), 0) 50%) no-repeat;
+  width: var(--circle-size); height: var(--circle-size); top: calc(50% - var(--circle-size) / 2); left: calc(50% - var(--circle-size) / 2);
+  transform-origin: center center; animation: moveVertical 30s ease infinite; }
+.g2 { background: radial-gradient(circle at center, rgba(var(--color2), var(--o1)) 0, rgba(var(--color2), 0) 50%) no-repeat;
+  width: var(--circle-size); height: var(--circle-size); top: calc(50% - var(--circle-size) / 2); left: calc(50% - var(--circle-size) / 2);
+  transform-origin: calc(50% - 400px); animation: moveInCircle 20s reverse infinite; }
+.g3 { background: radial-gradient(circle at center, rgba(var(--color3), var(--o1)) 0, rgba(var(--color3), 0) 50%) no-repeat;
+  width: var(--circle-size); height: var(--circle-size); top: calc(50% - var(--circle-size) / 2 + 200px); left: calc(50% - var(--circle-size) / 2 - 500px);
+  transform-origin: calc(50% + 400px); animation: moveInCircle 40s linear infinite; }
+.g4 { background: radial-gradient(circle at center, rgba(var(--color4), var(--o1)) 0, rgba(var(--color4), 0) 50%) no-repeat;
+  width: var(--circle-size); height: var(--circle-size); top: calc(50% - var(--circle-size) / 2); left: calc(50% - var(--circle-size) / 2);
+  transform-origin: calc(50% - 200px); animation: moveHorizontal 40s ease infinite; opacity: var(--o4); }
+.g5 { background: radial-gradient(circle at center, rgba(var(--color5), var(--o1)) 0, rgba(var(--color5), 0) 50%) no-repeat;
+  width: calc(var(--circle-size) * 2); height: calc(var(--circle-size) * 2); top: calc(50% - var(--circle-size)); left: calc(50% - var(--circle-size));
+  transform-origin: calc(50% - 800px) calc(50% + 200px); animation: moveInCircle 20s ease infinite; }
+.interactive { background: radial-gradient(circle at center, rgba(var(--color-interactive), .8) 0, rgba(var(--color-interactive), 0) 50%) no-repeat;
+  width: 100%; height: 100%; top: -50%; left: -50%; opacity: var(--oi); }
+
+@keyframes moveInCircle { 0% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } 100% { transform: rotate(360deg); } }
+@keyframes moveVertical { 0% { transform: translateY(-50%); } 50% { transform: translateY(50%); } 100% { transform: translateY(-50%); } }
+@keyframes moveHorizontal { 0% { transform: translateX(-50%) translateY(-10%); } 50% { transform: translateX(50%) translateY(10%); } 100% { transform: translateX(-50%) translateY(-10%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .g1, .g2, .g3, .g4, .g5 { animation: none; }
+}
+
+@keyframes bgIn { from { opacity: 0; } }
+.bg { animation: bgIn 1.2s ease-out; }

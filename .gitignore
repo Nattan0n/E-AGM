@@ -1,0 +1,10 @@
+.env
+node_modules/
+.next/
+backend/bin/
+*.log
+
+obj/
+.env.local
+.env*.local
+.vs/

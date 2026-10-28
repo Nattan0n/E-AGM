@@ -1,0 +1,395 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="eagm-process-flow-v2" name="E-AGM Process Flow v2">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="2800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══ TITLE ═══ -->
+        <mxCell id="title" value="E-AGM Process Flow — ระบบใหม่ | OMD Maintain Data เอง | ผู้ถือหุ้น Self-Register | Online &amp; Onsite" style="text;html=1;align=center;fontStyle=1;fontSize=15;fontColor=#1e3a5f;" vertex="1" parent="1">
+          <mxGeometry x="50" y="15" width="1180" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════════════════════════════════════════ -->
+        <!-- SECTION 1: PRE-MEETING PHASE (ระบบใหม่)            -->
+        <!-- ════════════════════════════════════════════════════ -->
+        <mxCell id="hPre" value="🗓️  PRE-MEETING PHASE — ก่อนวันประชุม  |  OMD Admin จัดการข้อมูลได้เองผ่านระบบ (ไม่ต้องส่ง Excel ให้ ITD อีกต่อไป)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="65" width="1180" height="38" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pm1" value="STEP 1: OMD Admin — ตั้งค่า Master&#xa;Login เข้าระบบ → ตั้งค่า: วันที่ประชุม, สถานที่, จำนวน Quorum&#xa;ปรับแก้ได้เองโดยตรงผ่านหน้า Admin Panel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="120" width="680" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pm2" value="STEP 2: OMD Admin — นำเข้าและจัดการข้อมูลผู้ถือหุ้น&#xa;Import ไฟล์ Excel หรือกรอกข้อมูลตรง: holder | novote | termpartner&#xa;เพิ่ม / แก้ไข / ลบ ข้อมูลได้เองทั้งหมด ไม่ต้องผ่าน ITD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="205" width="680" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pm3" value="STEP 3: OMD Admin — จัดการวาระการประชุม&#xa;เพิ่ม / แก้ไข / เรียงลำดับ วาระ (termpartner)&#xa;กำหนด: ชื่อวาระ, ประเภท, จำนวนหุ้นเต็ม (full_term)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="290" width="680" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pm4" value="STEP 4: ITD — Backup DB ปีที่แล้ว + ทดสอบระบบ (Internal Test)&#xa;Backup SQL → ทดสอบ: ลงทะเบียน (Self-Register + Staff) + โหวต Online/Onsite ครบทุก scenario&#xa;ผ่านทุก case → Clear test data → ส่ง UAT ให้ OMD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="375" width="680" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pm5" value="STEP 5: UAT ร่วม OMD + ITD&#xa;OMD ทดสอบ: Self-Register + โหวต Online + เปลี่ยน Online→Onsite + Print Vote Card&#xa;✅ ผ่าน → Clear Test Data → เปิดระบบรับลงทะเบียนจริง" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="460" width="680" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pm6" value="✅ เปิดรับลงทะเบียนล่วงหน้า (Pre-Registration Window)&#xa;ผู้ถือหุ้นที่รับมอบฉันทะ / Staff / OMD Admin ช่วยลงทะเบียนแทนล่วงหน้าได้" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="545" width="680" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Pre-meeting edges -->
+        <mxCell id="epm1pm2" edge="1" source="pm1" target="pm2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="epm2pm3" edge="1" source="pm2" target="pm3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="epm3pm4" edge="1" source="pm3" target="pm4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="epm4pm5" edge="1" source="pm4" target="pm5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="epm5pm6" edge="1" source="pm5" target="pm6" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════════════════════════════════════════ -->
+        <!-- DIVIDER: MEETING DAY                                 -->
+        <!-- ════════════════════════════════════════════════════ -->
+        <mxCell id="divDay" value="📅  วันประชุม — Meeting Day  |  ผู้ถือหุ้นมาได้ทั้ง Online และ Onsite  |  ทุก Role ทำงานพร้อมกัน" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#555555;fontStyle=1;fontSize=13;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="50" y="625" width="1180" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="epm6div" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="pm6" target="divDay" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ COLUMN HEADERS ═══ -->
+        <mxCell id="hSH" value="👤  ผู้ถือหุ้น — Self-Register" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="20" y="678" width="330" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="hAdminOMD" value="⚙️  Admin OMD — จัดการวันประชุม + เปลี่ยน Status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="365" y="678" width="480" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="hStaff" value="👥  Staff — Onsite Support" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="860" y="678" width="370" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edivSH" edge="1" source="divDay" target="hSH" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edivAdmin" edge="1" source="divDay" target="hAdminOMD" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edivStaff" edge="1" source="divDay" target="hStaff" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════ -->
+        <!-- COLUMN 1: ผู้ถือหุ้น (Self-Register) -->
+        <!-- ═══════════════════════════════════ -->
+        <mxCell id="sh1" value="เข้า URL ระบบ (Self-Register)&#xa;ผ่าน Mobile / Browser / คอมพิวเตอร์" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="730" width="310" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sh2" value="กรอกข้อมูลลงทะเบียน&#xa;รหัสผู้ถือหุ้น + เลขบัตรประชาชน&#xa;เบอร์โทร + Email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="805" width="310" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="shErrData" value="❌ ข้อมูลไม่ตรง / novote&#xa;แจ้งเตือน → กรอกใหม่" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="-180" y="820" width="195" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sh3" value="รับ OTP: SMS / Email (10 นาที)&#xa;กรอก OTP 6 หลัก เพื่อยืนยันตัวตน" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="895" width="310" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="shErrOtp" value="❌ OTP ผิด/หมดอายุ&#xa;ขอ OTP ใหม่" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="-180" y="905" width="195" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Choice Diamond -->
+        <mxCell id="shChoice" value="เลือกรูปแบบ&#xa;เข้าร่วมประชุม" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="978" width="250" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Online path -->
+        <mxCell id="shOnlineBox" value="📱 ห้องรอประชุม (Online)&#xa;แสดง: ชื่อ, จำนวนหุ้น, Quorum %&#xa;status = online_registered" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1095" width="145" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Onsite path -->
+        <mxCell id="shOnsiteBox" value="🏢 Onsite&#xa;แจ้งเจ้าหน้าที่ที่ Venue&#xa;รับบัตร Vote Card&#xa;จาก Admin OMD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="195" y="1095" width="155" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Online Vote -->
+        <mxCell id="shVote" value="🗳️ โหวต Online&#xa;เห็นด้วย / ไม่เห็นด้วย&#xa;งดออกเสียง / บัตรเสีย&#xa;บันทึก votes_online&#xa;(ไม่โหวต = auto-agree)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1210" width="145" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- Shareholder edges -->
+        <mxCell id="esh1sh2" edge="1" source="sh1" target="sh2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="esh2Err" value="ไม่ตรง" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=#b85450;fontSize=9;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" source="sh2" target="shErrData" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eErrSh2" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#b85450;exitX=1;exitY=0;entryX=0;entryY=0;" edge="1" source="shErrData" target="sh2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="esh2sh3" value="✅ ตรง" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=#82b366;fontSize=10;" edge="1" source="sh2" target="sh3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="esh3Otp" value="OTP ผิด" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=#b85450;fontSize=9;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" source="sh3" target="shErrOtp" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eErrOtpSh3" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#b85450;exitX=1;exitY=0;entryX=0;entryY=0;" edge="1" source="shErrOtp" target="sh3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="esh3Choice" value="✅ OTP ถูก" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=#82b366;fontSize=10;" edge="1" source="sh3" target="shChoice" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eChoiceOnline" value="Online" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=#82b366;fontStyle=1;fontSize=10;exitX=0;exitY=1;entryX=0.5;entryY=0;" edge="1" source="shChoice" target="shOnlineBox" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eChoiceOnsite" value="Onsite" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=#d6b656;fontStyle=1;fontSize=10;exitX=1;exitY=1;entryX=0.5;entryY=0;" edge="1" source="shChoice" target="shOnsiteBox" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eOnlineVote" value="Admin เปิดวาระ" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" edge="1" source="shOnlineBox" target="shVote" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════════════════ -->
+        <!-- COLUMN 2: Admin OMD         -->
+        <!-- ════════════════════════════ -->
+        <mxCell id="a1" value="🔑 Login — Admin OMD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="730" width="460" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a2" value="📊 Dashboard Realtime&#xa;จำนวนลงทะเบียน | Quorum % | Online vs Onsite | สถานะแต่ละวาระ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="795" width="460" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Change Status: Online → Onsite -->
+        <mxCell id="aChgStatus" value="🔄 เปลี่ยน Status: Online → Onsite&#xa;กรณี: ผู้ถือหุ้นลงทะเบียน Online แต่ต้องการโหวตแบบ Onsite&#xa;ค้นหา Account → กด 'เปลี่ยนเป็น Onsite'&#xa;→ ยกเลิก online session → สร้าง regismaim + regissub&#xa;→ บันทึก audit_log (ใคร เวลาไหน)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="870" width="460" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Print Vote Card -->
+        <mxCell id="aPrint" value="🖨️ Print บัตร Vote&#xa;พิมพ์บัตรลงคะแนนสำหรับผู้ถือหุ้น Onsite&#xa;มี: ชื่อ, รหัส, จำนวนหุ้น, วาระทั้งหมด&#xa;แจกให้ผู้ถือหุ้น ณ Venue วันจริง" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="990" width="460" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Open Agenda -->
+        <mxCell id="aOpen" value="▶️ เปิดวาระ (open = 1)&#xa;→ ผู้ถือหุ้น Online: เห็นปุ่มโหวต&#xa;→ Staff: โหวตแทน Onsite ได้" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="1090" width="460" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Close Agenda -->
+        <mxCell id="aClose" value="⏹️ ปิดวาระ&#xa;⚠️ Modal: 'ผู้ที่ยังไม่โหวต จะนับเป็น เห็นด้วย อัตโนมัติ'&#xa;คำนวณ: full_term − agree − noc − fail = auto-agree&#xa;อัปเดต countshare, relateshare ใน termpartner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="1175" width="460" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Summary Report -->
+        <mxCell id="aRpt" value="📊 สรุปผลการประชุม&#xa;รวม: Onsite (regissub) + Online (votes_online)&#xa;Export PDF / Excel → ส่งให้ OMD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="1275" width="460" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Close Meeting -->
+        <mxCell id="aCmtg" value="🔒 ปิดการประชุม (Close Meeting)&#xa;ทำได้หลัง: Vote ครบทุกวาระ + ยืนยัน&#xa;set master.closed_at = NOW() → ทุก API write → reject 403" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="375" y="1360" width="460" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Admin OMD edges -->
+        <mxCell id="ea1a2" edge="1" source="a1" target="a2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ea2aChg" edge="1" source="a2" target="aChgStatus" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eaChgPrint" edge="1" source="aChgStatus" target="aPrint" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eaPrintOpen" edge="1" source="aPrint" target="aOpen" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eaOpenClose" edge="1" source="aOpen" target="aClose" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eaCloseRpt" edge="1" source="aClose" target="aRpt" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eaRptCmtg" edge="1" source="aRpt" target="aCmtg" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════════════════ -->
+        <!-- COLUMN 3: Staff             -->
+        <!-- ════════════════════════════ -->
+        <mxCell id="st1" value="🔑 Login — Staff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="730" width="350" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="st2" value="🔍 ค้นหาผู้ถือหุ้น&#xa;รหัส / ชื่อ / เลขบัตรประชาชน" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="795" width="350" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Registration types -->
+        <mxCell id="st3a" value="👤 บุคคล&#xa;ลงทะเบียนตัวเอง" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="878" width="105" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="st3b" value="📄 มอบฉันทะ&#xa;ระบุผู้รับ + หุ้น" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="990" y="878" width="105" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="st3c" value="👥 กลุ่ม&#xa;สร้าง + สมาชิก" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="878" width="110" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="st4" value="💾 บันทึก regismaim + regissub&#xa;pre-fill ทุกวาระ = เห็นด้วย (default ก่อนเปิดวาระ)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="960" width="350" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Vote on behalf -->
+        <mxCell id="st5" value="🗳️ โหวตแทน Onsite&#xa;ค้นหาผู้ถือหุ้นที่ลงทะเบียนแล้ว&#xa;เลือก: เห็นด้วย / ไม่เห็น / งด / บัตรเสีย&#xa;UPDATE regissub (วาระละ 1 ครั้ง)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="1175" width="350" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Late registration -->
+        <mxCell id="stLate" value="⏰ ผู้มาสาย&#xa;ลงทะเบียนปกติ + บันทึก holderlate&#xa;(timestamp มาถึง)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="870" y="1080" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="stNV" value="🚫 จัดการ novote&#xa;เพิ่ม / ลบ รายชื่อ&#xa;ผู้ไม่มีสิทธิ์โหวต" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="1080" width="170" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Staff edges -->
+        <mxCell id="est1st2" edge="1" source="st1" target="st2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est2st3a" edge="1" source="st2" target="st3a" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est2st3b" edge="1" source="st2" target="st3b" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est2st3c" edge="1" source="st2" target="st3c" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est3ast4" edge="1" source="st3a" target="st4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est3bst4" edge="1" source="st3b" target="st4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est3cst4" edge="1" source="st3c" target="st4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est4Late" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=1;" edge="1" source="st4" target="stLate" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est4NV" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=1;" edge="1" source="st4" target="stNV" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="est4st5" value="Admin เปิดวาระ" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" edge="1" source="st4" target="st5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ CROSS-COLUMN EDGES ═══ -->
+
+        <!-- Admin Open → Online: โหวตได้ -->
+        <mxCell id="eOpenOnline" value="เปิดวาระ → Online โหวตได้" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" source="aOpen" target="shOnlineBox" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="1122" />
+              <mxPoint x="175" y="1122" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Admin Open → Staff: โหวตแทนได้ -->
+        <mxCell id="eOpenStaff" value="เปิดวาระ → Staff โหวตแทนได้" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="aOpen" target="st5" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="855" y="1122" />
+              <mxPoint x="855" y="1215" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Admin Print → Onsite Shareholder gets card -->
+        <mxCell id="ePrintOnsite" value="แจก Vote Card" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" source="aPrint" target="shOnsiteBox" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="1030" />
+              <mxPoint x="330" y="1132" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Onsite Shareholder → Staff votes on behalf -->
+        <mxCell id="eOnsiteStaff" value="Staff โหวตแทน" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#d6b656;fontColor=#d6b656;fontSize=9;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="shOnsiteBox" target="st5" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="700" y="1132" />
+              <mxPoint x="700" y="1215" />
+              <mxPoint x="870" y="1215" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ════════════════════════════════════════════════════ -->
+        <!-- SPECIAL CASE: Online → Onsite Conversion            -->
+        <!-- ════════════════════════════════════════════════════ -->
+        <mxCell id="divSP" value="🔄  กรณีพิเศษ — ผู้ถือหุ้นลงทะเบียน Online แต่ต้องการเปลี่ยนเป็น Onsite วันจริง (Admin OMD ดำเนินการ)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1470" width="1180" height="38" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sp1" value="📱 ผู้ถือหุ้นเคย&#xa;ลงทะเบียน Online&#xa;(status = online_registered)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1525" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sp2" value="🏢 วันจริง: มาที่ Venue&#xa;ไม่อยากโหวต Online&#xa;แจ้ง Admin OMD ที่ Venue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="305" y="1525" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sp3" value="⚙️ Admin OMD: เปลี่ยน Status Online → Onsite&#xa;1. ยกเลิก online session (status = converted)&#xa;2. สร้าง regismaim + regissub (Onsite record)&#xa;3. Print Vote Card ส่งให้ผู้ถือหุ้น&#xa;4. บันทึก audit_log (ใคร, เมื่อไหร่, ทำไม)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="550" y="1510" width="350" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sp4" value="🗳️ Staff โหวตแทน Onsite&#xa;ตามปกติผ่านระบบ Staff&#xa;UPDATE regissub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="930" y="1525" width="250" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="esp1sp2" edge="1" source="sp1" target="sp2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="esp2sp3" edge="1" source="sp2" target="sp3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="esp3sp4" edge="1" source="sp3" target="sp4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════════════════════════════════════════ -->
+        <!-- DOUBLE-VOTE PREVENTION + AUDIT                       -->
+        <!-- ════════════════════════════════════════════════════ -->
+        <mxCell id="dvWarn" value="🔒 ป้องกัน Double-vote | MDES 2563 Compliance&#xa;• ถ้ามี record ใน online_registration (verified/voted) → ต้อง Convert ก่อน Admin จึงสร้าง regissub ได้ — ห้าม insert ซ้ำ&#xa;• UNIQUE constraint (acc_id, term_id) ใน votes_online | ตรวจ cross-table ก่อน pre-fill regissub ทุกครั้ง&#xa;• ทุก action: เปลี่ยน Status, Print, เปิด/ปิดวาระ → บันทึก audit_log (user, timestamp, IP, action)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1640" width="1180" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════════════════════════════════════════ -->
+        <!-- NEXT YEAR PREP                                        -->
+        <!-- ════════════════════════════════════════════════════ -->
+        <mxCell id="aClr" value="🗑️ เตรียมปีถัดไป — Next Year Prep (OMD Admin ดำเนินการ)&#xa;STEP 1: Auto Backup SQL (safety export)&#xa;STEP 2: Modal Confirm 2 ชั้น (พิมพ์ 'ยืนยันลบข้อมูล') → OMD จัดการเองได้ทันที&#xa;STEP 3: ล้าง + import ใหม่: holder, novote, termpartner | คงไว้ใน DB: regissub, votes_online, online_registration, regismaim, regisgroup, holderlate, audit_log (เก็บตาม meeting_year)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1750" width="1180" height="85" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

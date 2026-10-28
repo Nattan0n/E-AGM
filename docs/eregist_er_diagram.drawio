@@ -1,0 +1,212 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="er-eregist" name="ER Diagram - Eregist">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TITLE -->
+        <mxCell id="title" value="Eregist — ER Diagram (Actual Schema + New Tables)" style="text;html=1;align=center;fontStyle=1;fontSize=16;fontColor=#1e3a5f;" vertex="1" parent="1">
+          <mxGeometry x="300" y="10" width="1000" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- LEGEND -->
+        <mxCell id="leg_old" value="ตารางเดิม (MyISAM)" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1430" y="50" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_new" value="⭐ ตารางใหม่ (InnoDB)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;fontColor=#1e3a5f;" vertex="1" parent="1">
+          <mxGeometry x="1430" y="90" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_warn" value="⚠️ ไม่มี FK จริง (MyISAM)" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;fontColor=#b45309;" vertex="1" parent="1">
+          <mxGeometry x="1430" y="130" width="160" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_rel_new" value="Relation ใหม่ (สีน้ำเงิน, FK จริง)" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1430" y="150" width="160" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- EXISTING TABLES                           -->
+        <!-- ══════════════════════════════════════════ -->
+
+        <!-- useradmin -->
+        <mxCell id="e_useradmin" value="useradmin" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="30" y="50" width="270" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="f_useradmin" value="🔑 ida (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;Fullname (VARCHAR 80)&#xa;usr (VARCHAR 20)&#xa;pws (VARCHAR 20, ⚠️ plain text)&#xa;Part (VARCHAR 100) — แผนก ITD/OMD&#xa;etc (VARCHAR 255) — Creator/Admin/User" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_useradmin">
+          <mxGeometry x="0" y="25" width="270" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- master -->
+        <mxCell id="e_master" value="master" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="720" y="50" width="270" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="f_master" value="🔑 id (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;codemaster (VARCHAR 4) — ปี เช่น '2025'&#xa;detailmaster (VARCHAR 255)&#xa;datemaster (VARCHAR 80) — string ของวันที่&#xa;updmaster (TIMESTAMP auto)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_master">
+          <mxGeometry x="0" y="25" width="270" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- regisgroup -->
+        <mxCell id="e_regisgroup" value="regisgroup" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="30" y="270" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="f_regisgroup" value="🔑 id_group (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;id_acc (VARCHAR 10) → holder.Account_id&#xa;name_group (VARCHAR 255)&#xa;totle_regis (INT 11) — หุ้นรวมกลุ่ม&#xa;upd_addgroup (TIMESTAMP auto)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_regisgroup">
+          <mxGeometry x="0" y="25" width="270" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- holder (CENTER - main entity) -->
+        <mxCell id="e_holder" value="holder" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=12;fontColor=#333333;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="395" y="180" width="290" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="f_holder" value="(ไม่มี PK ใน DDL จริง — Account_id เป็น de facto key)&#xa;━━━━━━━━━━━━━━━━━━━━━━━━━━━━&#xa;security (VARCHAR 5) — 'TRU'&#xa;Account_id (VARCHAR 15, NOT NULL)&#xa;Holder_type (VARCHAR 1) — 0/1/2/3&#xa;Q_share (INT 11)&#xa;I_title (VARCHAR 3) — รหัสคำนำหน้า&#xa;N_title (VARCHAR 50) — คำนำหน้า TH&#xa;N_first (VARCHAR 150) — ชื่อ&#xa;N_last (VARCHAR 255) — นามสกุล&#xa;A_holder (VARCHAR 255) — ที่อยู่&#xa;M_phone (VARCHAR 50) — มือถือ&#xa;I_Email (VARCHAR 100) — อีเมล&#xa;I_tax (VARCHAR 50) — เลขบัตร/Passport&#xa;Codebank, Account — บัญชีธนาคาร&#xa;Year_do (VARCHAR 5) — ปีที่ถือหุ้น&#xa;+ อีก 11 columns (H_phone, W_phone, ...)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_holder">
+          <mxGeometry x="0" y="25" width="290" height="285" as="geometry" />
+        </mxCell>
+
+        <!-- termpartner -->
+        <mxCell id="e_termpartner" value="termpartner" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="730" y="200" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="f_termpartner" value="🔑 id (PK, INT — ⚠️ ไม่ AUTO, ตั้งเอง)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;term_id (VARCHAR 5) — เช่น '1','5.1','5.2'&#xa;term_name (VARCHAR 255) — TH&#xa;term_name_en (VARCHAR 255) — EN&#xa;closevote (TIMESTAMP auto) — ปิดโหวต&#xa;watermark (VARCHAR 1)&#xa;relateshare (INT 11) — หุ้นเกี่ยวข้อง&#xa;countshare (INT 11) — จำนวนผู้โหวต&#xa;open (VARCHAR 1) — '0'=ปิด '1'=เปิด&#xa;statusprint (ENUM 'on'/'off')" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_termpartner">
+          <mxGeometry x="0" y="25" width="280" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- regissub -->
+        <mxCell id="e_regissub" value="regissub" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="200" width="300" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="f_regissub" value="(ไม่มี PK — UNIQUE KEY id_term+id_acc)&#xa;⚠️ Engine=MyISAM — ไม่รองรับ FK จริง&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;id_term (INT 2) → termpartner.id&#xa;id_acc (VARCHAR 25) → holder.Account_id&#xa;agree_term (INT 11) — หุ้นไม่เห็นด้วย&#xa;  ⚠️ ชื่อ misleading (จริงๆ คือ disagree)&#xa;noc_term (INT 11) — หุ้นงดออกเสียง&#xa;full_term (INT 11) — หุ้นทั้งหมด&#xa;fail_term (INT 11) — หุ้นบัตรเสีย&#xa;time_regis (TIMESTAMP) — เวลาลงทะเบียน&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;เห็นด้วย = full - agree - noc - fail" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_regissub">
+          <mxGeometry x="0" y="25" width="300" height="185" as="geometry" />
+        </mxCell>
+
+        <!-- regismaim -->
+        <mxCell id="e_regismaim" value="regismaim" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="395" y="570" width="290" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="f_regismaim" value="🔑 id (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;id_acc (VARCHAR 25) → holder.Account_id&#xa;name_regis (VARCHAR 255)&#xa;mq_share (INT 11)&#xa;group_regis (VARCHAR 50, NULL) — ชื่อกลุ่ม&#xa;group_type (VARCHAR 100) — '0'=บุคคล '1'=มอบฉันทะ&#xa;admin_regist (VARCHAR 50) — username staff&#xa;upd_regis (TIMESTAMP auto)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_regismaim">
+          <mxGeometry x="0" y="25" width="290" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- novote -->
+        <mxCell id="e_novote" value="novote" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="730" y="490" width="280" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="f_novote" value="🔑 id_novote (PK, INT 2 AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;id_term (VARCHAR 5) → termpartner.term_id&#xa;acc_novote (VARCHAR 30) → holder.Account_id&#xa;name_novote (VARCHAR 100)&#xa;share_novote (INT 11)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_novote">
+          <mxGeometry x="0" y="25" width="280" height="105" as="geometry" />
+        </mxCell>
+
+        <!-- holderlate -->
+        <mxCell id="e_holderlate" value="holderlate" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="395" y="820" width="290" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="f_holderlate" value="🔑 HLKey (PK, INT 7 AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;AccID (VARCHAR 29, UNIQUE) → holder.Account_id&#xa;TermID (VARCHAR 5) → termpartner.term_id&#xa;CoopQty (DOUBLE) — จำนวนหุ้น&#xa;LastDate (DATETIME) — เวลามาถึง&#xa;⚠️ UNIQUE AccID — 1 คน มีแค่ 1 record" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_holderlate">
+          <mxGeometry x="0" y="25" width="290" height="115" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- NEW TABLES (BLUE)                         -->
+        <!-- ══════════════════════════════════════════ -->
+
+        <!-- online_registration -->
+        <mxCell id="e_online_reg" value="⭐ online_registration" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;fontColor=#1e3a5f;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="30" y="490" width="290" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="f_online_reg" value="🔑 id (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;acc_id (VARCHAR 15) → holder.Account_id&#xa;meeting_year (VARCHAR 4) → master.codemaster&#xa;id_card_hash (VARCHAR 64, hashed)&#xa;phone (VARCHAR 50)&#xa;email (VARCHAR 100)&#xa;otp_code (VARCHAR 64, hashed)&#xa;otp_expires_at (DATETIME)&#xa;otp_verified (TINYINT) 0/1&#xa;token (VARCHAR 64, UUID)&#xa;token_expires_at (DATETIME)&#xa;ip_address (VARCHAR 45)&#xa;registered_at (DATETIME auto)&#xa;status (ENUM)&#xa;  pending / verified / voted" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_online_reg">
+          <mxGeometry x="0" y="25" width="290" height="315" as="geometry" />
+        </mxCell>
+
+        <!-- votes_online -->
+        <mxCell id="e_votes_online" value="⭐ votes_online" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;fontColor=#1e3a5f;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="490" width="300" height="215" as="geometry" />
+        </mxCell>
+        <mxCell id="f_votes_online" value="🔑 id (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;online_reg_id (INT) → online_registration.id&#xa;acc_id (VARCHAR 15) → holder.Account_id&#xa;term_id (VARCHAR 5) → termpartner.term_id&#xa;vote_choice (ENUM)&#xa;  agree / disagree / abstain / spoiled&#xa;voted_at (DATETIME auto)&#xa;ip_address (VARCHAR 45)&#xa;meeting_year (VARCHAR 4)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;UNIQUE (acc_id, term_id)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_votes_online">
+          <mxGeometry x="0" y="25" width="300" height="190" as="geometry" />
+        </mxCell>
+
+        <!-- audit_log -->
+        <mxCell id="e_audit_log" value="⭐ audit_log" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;fontColor=#1e3a5f;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="30" y="900" width="290" height="185" as="geometry" />
+        </mxCell>
+        <mxCell id="f_audit_log" value="🔑 id (PK, INT AUTO)&#xa;━━━━━━━━━━━━━━━━━━━━━━&#xa;acc_id (VARCHAR 15, nullable)&#xa;action (VARCHAR 50)&#xa;  login / otp_request / vote / logout&#xa;detail (TEXT / JSON)&#xa;ip_address (VARCHAR 45)&#xa;user_agent (VARCHAR 255)&#xa;created_at (DATETIME auto)&#xa;meeting_year (VARCHAR 4)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=10;whiteSpace=wrap;" vertex="1" parent="e_audit_log">
+          <mxGeometry x="0" y="25" width="290" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- RELATIONSHIPS (EXISTING — dashed = logical only, no real FK) -->
+        <!-- ══════════════════════════════════════════ -->
+
+        <!-- master → termpartner -->
+        <mxCell id="rel_master_term" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_master" target="e_termpartner" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- holder → regismaim -->
+        <mxCell id="rel_holder_regismaim" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_holder" target="e_regismaim" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- holder → regisgroup -->
+        <mxCell id="rel_holder_regisgroup" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_holder" target="e_regisgroup" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- holder → regissub -->
+        <mxCell id="rel_holder_regissub" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_holder" target="e_regissub" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- holder → novote -->
+        <mxCell id="rel_holder_novote" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_holder" target="e_novote" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- holder → holderlate -->
+        <mxCell id="rel_holder_holderlate" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_holder" target="e_holderlate" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- termpartner → regissub -->
+        <mxCell id="rel_term_regissub" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_termpartner" target="e_regissub" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- termpartner → novote -->
+        <mxCell id="rel_term_novote" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_termpartner" target="e_novote" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- regisgroup → regismaim (via name in group_regis) -->
+        <mxCell id="rel_group_regismaim" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;dashed=1;" edge="1" source="e_regisgroup" target="e_regismaim" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- RELATIONSHIPS (NEW — สีน้ำเงิน, FK จริง InnoDB) -->
+        <!-- ══════════════════════════════════════════ -->
+
+        <!-- holder → online_registration -->
+        <mxCell id="rel_holder_onlinereg" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="e_holder" target="e_online_reg" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- master → online_registration -->
+        <mxCell id="rel_master_onlinereg" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="e_master" target="e_online_reg" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- online_registration → votes_online -->
+        <mxCell id="rel_onlinereg_votes" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="e_online_reg" target="e_votes_online" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- holder → votes_online -->
+        <mxCell id="rel_holder_votes" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="e_holder" target="e_votes_online" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- termpartner → votes_online -->
+        <mxCell id="rel_term_votes" style="edgeStyle=orthogonalEdgeStyle;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="e_termpartner" target="e_votes_online" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
