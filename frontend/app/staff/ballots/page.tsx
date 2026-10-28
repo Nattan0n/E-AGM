@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/brand/Icon";
 import { api, errMsg, fmt } from "@/lib/api";
@@ -33,7 +34,7 @@ function Ballots({ toast }: Ctx) {
   const { data: meeting } = useApi<Meeting>("/api/meeting");
   const { data: rows } = useApi<VoteRow[]>(h && h.status === "onsite" ? `/api/vote/onsite/${encodeURIComponent(h.account_id)}` : null);
   const { data: members } = useApi<GroupMember[]>(gid ? `/api/registration/groups/${encodeURIComponent(gid)}` : null);
-  const { data: groups } = useApi<GroupItem[]>(gid ? "/api/registration/groups" : null);
+  const { data: groups } = useApi<GroupItem[]>("/api/registration/groups");
   const [noVote, setNoVote] = useState<Set<string>>(new Set()); // "term|account" pairs without voting rights
 
   useEffect(() => {
@@ -58,7 +59,31 @@ function Ballots({ toast }: Ctx) {
   else if (h && h.status === "onsite" && rows) people = [{ account_id: h.account_id, name: h.name, shares: rows[0]?.shares ?? h.shares, note: h.reg_type === "proxy" ? "ผู้รับมอบฉันทะ" : h.reg_type === "group" ? `กลุ่ม ${h.group_name ?? ""}` : "-" }];
 
   if (!gid && loading) return <p className={styles.empty}>กำลังโหลดข้อมูลผู้ถือหุ้น...</p>;
-  if (!gid && !h) return <div className={styles.card}><HolderPicker onPick={setH} filter={(x) => x.status === "onsite"} actionLabel="เลือก" /></div>;
+  if (!gid && !h) return (
+    <>
+      <div className={styles.card}>
+        <div className={styles.cardTitle}>พิมพ์เป็นกลุ่ม (กองทุน / นิติบุคคล)</div>
+        {!groups || groups.length === 0 ? <p className={styles.muted}>ยังไม่มีกลุ่มที่ลงทะเบียน</p> : (
+          <div className={styles.list}>
+            {groups.map((g) => (
+              <Link key={g.id} href={`/staff/ballots?group=${g.id}`} className={styles.item}>
+                <span className={styles.groupBadge}>{g.code.replace(/^.*?-/, "").slice(0, 4)}</span>
+                <span className={styles.grow}>
+                  <div className={styles.name}>{g.name}</div>
+                  <div className={styles.meta}>{g.code} · {g.members} สมาชิก</div>
+                </span>
+                <span className={styles.right}>
+                  <span className={styles.shares}>{fmt(g.shares)} หุ้น</span>
+                  <span className={`${styles.tag} ${styles.tBlue}`}>พิมพ์ทั้งกลุ่ม</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className={styles.card}><HolderPicker onPick={setH} filter={(x) => x.status === "onsite"} actionLabel="เลือก" /></div>
+    </>
+  );
 
   const votable = (agendas ?? []).filter((a) => a.vote_type !== "info");
   const ready = !!people && people.length > 0 && !!agendas;
@@ -76,7 +101,7 @@ function Ballots({ toast }: Ctx) {
         <label className={b.chk}><input type="checkbox" checked={slip} onChange={(e) => setSlip(e.target.checked)} /> พิมพ์ใบลงทะเบียนเข้าประชุม (ให้ผู้ถือหุ้นลงชื่อ) ด้วย</label>
       </div>
       <div className={`${styles.actionBar} ${b.noprint}`}>
-        {!gid && <button className={styles.btn} onClick={() => setH(null)}>เลือกใหม่</button>}
+        {!gid ? <button className={styles.btn} onClick={() => setH(null)}>เลือกใหม่</button> : <Link className={styles.btn} href="/staff/ballots">เลือกใหม่</Link>}
         <button className={`${styles.btn} ${styles.bPri}`} disabled={!ready || total === 0} onClick={() => window.print()}><Icon name="print" size={16} className="ico-inl" />พิมพ์{slip ? "ใบลงทะเบียน + " : ""}บัตรทั้งหมด</button>
       </div>
 
