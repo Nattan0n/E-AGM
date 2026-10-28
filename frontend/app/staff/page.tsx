@@ -90,7 +90,7 @@ function Search({ canWrite, toast }: Ctx) {
       <div className={`${styles.card} ${styles.searchRow}`}>
         <div className={styles.sbox}>
           <SearchIcon />
-          <input id="q" aria-label="ค้นหา" value={q} onChange={(e) => setQ(e.target.value)} placeholder="เลขทะเบียน / ชื่อ / เลขบัตร (อย่างน้อย 2 ตัวอักษร)" autoComplete="off" autoFocus />
+          <input id="q" aria-label="ค้นหา" value={q} onChange={(e) => setQ(e.target.value)} placeholder="เลขทะเบียน / ชื่อ / เลขบัตร (อย่างน้อย 2 ตัวอักษร)" autoComplete="off" />
         </div>
         <select className={styles.sel} aria-label="สถานะ" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
           <option value="all">ทั้งหมด</option>

@@ -65,7 +65,7 @@ export default function StaffLogin() {
             <div className={s.inputWrap}>
               <Icon name="user" size={18} />
               <input id="u" className={s.input} value={username} onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username" autoCapitalize="none" spellCheck={false} required autoFocus />
+                autoComplete="username" autoCapitalize="none" spellCheck={false} required />
             </div>
           </div>
 
