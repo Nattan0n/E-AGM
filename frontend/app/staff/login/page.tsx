@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, IconName } from "@/components/brand/Icon";
 import { LogoMark } from "@/components/brand/Logo";
@@ -87,6 +88,7 @@ export default function StaffLogin() {
             {busy ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
           <p className={s.help}>ลืมรหัสผ่าน? ติดต่อผู้ดูแลระบบ (ITD)</p>
+          <p className={s.help}><Link href="/">← กลับหน้าเลือกบทบาท</Link></p>
         </form>
         <div className={s.foot}>© Thai Rung Union Car Public Company Limited</div>
       </section>

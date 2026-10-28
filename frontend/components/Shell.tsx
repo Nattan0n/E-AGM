@@ -49,7 +49,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   useEffect(() => { if (fetched) meetingCache = fetched; }, [fetched]);
   const meeting = fetched ?? meetingCache;
   const active = (h: string) => (h === "/staff" || h === "/admin" ? path === h : path.startsWith(h));
-  const logout = () => { clearSession("staff"); router.replace("/staff/login"); };
+  const logout = () => { clearSession("staff"); router.replace("/"); };
   const display = session.name || session.username;
   const initial = display.trim().charAt(0).toUpperCase();
   const { collapsed, toggle: toggleSidebar, animate, settled } = useSidebarCollapsed();

@@ -44,7 +44,7 @@ export default function OnlineVote() {
   const { data, error, loading, reload } = useHolderApi<OnlineAgenda[]>("/api/online/agendas", 4000);
   const [target, setTarget] = useState<{ a: OnlineAgenda; choice: Choice } | null>(null);
   const router = useRouter();
-  const logout = () => { clearSession("holder"); router.replace("/online"); };
+  const logout = () => { clearSession("holder"); router.replace("/"); };
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [voteErr, setVoteErr] = useState("");

@@ -205,7 +205,7 @@ export default function OnlineWaiting() {
   const router = useRouter();
   const desktop = useIsDesktop();
   const ag = useHolderApi<OnlineAgenda[]>("/api/online/agendas", 5000);
-  const logout = () => { clearSession("holder"); router.replace("/online"); };
+  const logout = () => { clearSession("holder"); router.replace("/"); };
   const footer = desktop ? undefined : <MobileFooter ag={ag} />;
   return (
     <OnlineShell title="ห้องประชุมออนไลน์" step={3} auth pollMs={5000} width="full" onLogout={logout} footer={footer}

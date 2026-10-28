@@ -16,7 +16,7 @@ const dt = (v: string) => {
 export default function OnlineConfirm() {
   const router = useRouter();
   const { data, error, loading } = useHolderApi<Receipt>("/api/online/receipt");
-  const logout = () => { clearSession("holder"); router.replace("/online"); };
+  const logout = () => { clearSession("holder"); router.replace("/"); };
 
   const chCls: Record<string, string> = { agree: s.bAgree, disagree: s.bDis, abstain: s.bAbs, spoiled: s.bSpo };
   const manual = data ? data.votes.filter((v) => !v.auto).length : 0;
