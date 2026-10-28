@@ -64,8 +64,8 @@ function Individual({ canWrite, toast }: Ctx) {
     setBusy(true);
     try {
       await api("/api/registration", { method: "POST", body: { account_id: h.account_id, type, proxy_name: type === "proxy" ? proxy.trim() : "", shares: n } });
-      toast("ลงทะเบียนสำเร็จ");
-      router.push("/staff");
+      toast("ลงทะเบียนสำเร็จ — พิมพ์บัตรลงคะแนนได้เลย");
+      router.push(`/staff/ballots?acc=${encodeURIComponent(h.account_id)}`);
     } catch (e) { toast(errMsg(e), true); setBusy(false); }
   }
 

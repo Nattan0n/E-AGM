@@ -15,6 +15,7 @@ export interface NavItem { href: string; label: string; icon: IconName }
 export const STAFF_NAV: NavItem[] = [
   { href: "/staff", label: "ค้นหา", icon: "search" },
   { href: "/staff/register", label: "ลงทะเบียน", icon: "register" },
+  { href: "/staff/ballots", label: "พิมพ์บัตร", icon: "print" },
   { href: "/staff/vote", label: "ลงคะแนน", icon: "vote" },
   { href: "/staff/late", label: "มาสาย", icon: "clock" },
   { href: "/staff/novote", label: "ไม่มีสิทธิ์", icon: "ban" },
