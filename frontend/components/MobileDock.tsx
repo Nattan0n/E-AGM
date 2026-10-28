@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon, IconName } from "@/components/brand/Icon";
 import styles from "./Shell.module.css";
 
@@ -11,6 +11,9 @@ const BAR_H = 64;
 const NW = 38;       // half width of the notch
 const DEPTH = 33;
 const CIRCLE = 52;
+
+// Each page mounts its own dock, so remember where the notch ended up (as a fraction of the width) and glide from there on the next page.
+let lastRatio: number | null = null;
 
 const easeOutBack = (t: number) => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
@@ -36,7 +39,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
   const cur = useRef<number | null>(null);
   const raf = useRef(0);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = navRef.current;
     if (!el) return;
     const measure = () => setW(el.clientWidth);
@@ -46,10 +49,11 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!w) return;
     const target = active < 0 ? null : ((active + 0.5) * w) / slots.length;
     const draw = (x: number | null) => {
+      lastRatio = x === null ? null : x / w;
       pathRef.current?.setAttribute("d", barPath(w, x));
       if (circleRef.current) {
         circleRef.current.style.transform = `translateX(${(x ?? -200) - CIRCLE / 2}px)`;
@@ -57,7 +61,8 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
       }
     };
     cancelAnimationFrame(raf.current);
-    const from = cur.current;
+    const from = lastRatio !== null ? lastRatio * w : cur.current; // the notch's position on whichever page we came from
+    if (from !== null && from !== target) draw(from); // paint the previous position first, then glide
     if (from === null || target === null) { cur.current = target; draw(target); return; }
     const t0 = performance.now();
     const step = (now: number) => {
