@@ -134,7 +134,7 @@ function audit(): AuditRow[] {
 const HOLDER_TOKEN_ACC = () => { try { return (JSON.parse(sessionStorage.getItem("eagm_holder") ?? "{}") as { account_id?: string }).account_id ?? "1009"; } catch { return "1009"; } };
 
 export async function mockApi(path: string, method: string, body: Record<string, unknown> | undefined): Promise<unknown> {
-  await new Promise((r) => setTimeout(r, 120));
+  await new Promise((r) => setTimeout(r, 40));
   const s = S();
   const url = new URL(path, "http://x");
   const p = url.pathname, q = url.searchParams;

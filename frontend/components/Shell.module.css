@@ -91,10 +91,10 @@
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } }
 @keyframes drop { from { opacity: 0; transform: translateY(-8px); } }
-.main > * { animation: rise .55s cubic-bezier(.2, .8, .2, 1) backwards; }
-.main > *:nth-child(2) { animation-delay: .06s; }
-.main > *:nth-child(3) { animation-delay: .12s; }
-.main > *:nth-child(4) { animation-delay: .18s; }
+.main > * { animation: rise .26s cubic-bezier(.2, .8, .2, 1) backwards; }
+.main > *:nth-child(2) { animation-delay: .03s; }
+.main > *:nth-child(3) { animation-delay: .06s; }
+.main > *:nth-child(4) { animation-delay: .09s; }
 .top { animation: drop .45s ease-out backwards; }
 @media (min-width: 1024px) {
   .nav a { animation: slideIn .5s cubic-bezier(.2, .8, .2, 1) backwards; }
