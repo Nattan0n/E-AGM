@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: "ระบบลงทะเบียนและลงคะแนนเสียงผู้ถือหุ้น (Onsite + Online)",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b2a8f" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
