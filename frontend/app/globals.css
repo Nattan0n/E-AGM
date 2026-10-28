@@ -488,3 +488,9 @@ html:not([data-ready]) #app-root { opacity: 0; }
 :is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(8) { animation-delay: 0.32s; }
 :is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(n+9) { animation-delay: .36s; }
 @media (prefers-reduced-motion: reduce) { :is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > * { animation: none; } }
+
+/* phones: ~60 frosted cards re-blurring the animated backdrop every frame is the heaviest thing on screen,
+   so use denser white panes instead of backdrop blur */
+@media (max-width: 1023px) {
+  :root { --glass: rgba(255, 255, 255, .9); --glass-strong: rgba(255, 255, 255, .96); --glass-blur: none; }
+}
