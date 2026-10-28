@@ -56,13 +56,13 @@ function SummaryView() {
         <div className={styles.kpiTop} style={{ borderTopColor: "#f59e0b" }}><div className={`${styles.kv} ${styles.tcAmber}`}>{fmt(stats.late_count)}</div><div className={styles.kl}>ผู้มาสาย</div><div className={styles.kn} style={{ color: "var(--ink-muted)" }}>{fmt(stats.late_shares)} หุ้น</div></div>
       </div>
 
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.qHero}`}>
         <div className={styles.row} style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "nowrap" }}>
           <div>
             <div style={{ fontWeight: 700 }}>องค์ประชุม (Quorum)</div>
             <div className={styles.muted}>เกณฑ์ขั้นต่ำ {stats.quorum_required_pct}% ของจำนวนหุ้นทั้งหมด</div>
           </div>
-          <div className={styles.qNum} style={{ color: stats.quorum_reached ? "#16a34a" : "var(--primary)" }}>{stats.quorum_pct.toFixed(1)}%</div>
+          <div className={styles.qNum}>{stats.quorum_pct.toFixed(1)}%</div>
         </div>
         <div className={styles.qBar} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="องค์ประชุม"><span style={{ width: `${pct}%` }} /></div>
         <div className={styles.qFacts}>

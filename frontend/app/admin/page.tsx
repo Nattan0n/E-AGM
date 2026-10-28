@@ -77,7 +77,7 @@ function Body() {
       <State loading={loading && !data} error={data ? "" : error}>
         {data && st && (
           <>
-            <div className="ad-kpis">
+            <div className="ad-kpis ad-kpis-3">
               <div className="ad-kpi"><b className="c-blue">{st.quorum_pct.toFixed(1)}%</b><span>องค์ประชุม</span><small>{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น</small></div>
               <div className="ad-kpi"><b className="c-green">{fmt(st.onsite_count)}</b><span>Onsite</span><small>{fmt(st.onsite_shares)} หุ้น</small></div>
               <div className="ad-kpi"><b className="c-cyan">{fmt(st.online_count)}</b><span>Online</span><small>{fmt(st.online_shares)} หุ้น</small></div>
@@ -85,21 +85,20 @@ function Body() {
             </div>
 
             {!desktop && (
-              <div className="ad-card ad-quorum">
-                <div className="ad-card-h"><span>สถานะองค์ประชุม</span><span className={st.quorum_reached ? "ad-chip ad-chip-green" : "ad-chip ad-chip-red"}>{st.quorum_reached ? <><Icon name="check" size={13} className="ico-inl" />ครบองค์ประชุม</> : "ยังไม่ครบ"}</span></div>
-                <div className="ad-card-b">
-                  <div className="ad-big"><b className={st.quorum_reached ? "c-green" : "c-blue"}>{st.quorum_pct.toFixed(2)}%</b><span>หุ้น</span></div>
-                  <p className="muted" style={{ fontSize: 12, margin: "2px 0 10px" }}>{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น · ขั้นต่ำ {st.quorum_required_pct}%</p>
-                  <div className="ad-prog" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, st.quorum_pct)} aria-label="องค์ประชุม">
-                    <span style={{ width: `${Math.min(100, st.quorum_pct)}%` }} />
-                    <i title={`เกณฑ์ ${st.quorum_required_pct}%`} style={{ left: `${Math.min(100, st.quorum_required_pct)}%` }} />
-                  </div>
-                  <div className="ad-pills">
-                    <span className="ad-chip ad-chip-blue">Onsite {fmt(st.onsite_count)} ราย</span>
-                    <span className="ad-chip ad-chip-cyan">Online {fmt(st.online_count)} ราย</span>
-                    <span className="ad-chip">ผู้ถือหุ้นทั้งหมด {fmt(st.holders)}</span>
-                  </div>
+              <div className="hero-card">
+                <div className="hc-label">สถานะองค์ประชุม</div>
+                <div className="hc-big">{st.quorum_pct.toFixed(2)}%</div>
+                <p className="hc-sub">{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น · ขั้นต่ำ {st.quorum_required_pct}%</p>
+                <div className="ad-prog" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, st.quorum_pct)} aria-label="องค์ประชุม">
+                  <span style={{ width: `${Math.min(100, st.quorum_pct)}%` }} />
+                  <i title={`เกณฑ์ ${st.quorum_required_pct}%`} style={{ left: `${Math.min(100, st.quorum_required_pct)}%` }} />
                 </div>
+                <div className="hc-chips">
+                  <span>Onsite {fmt(st.onsite_count)} ราย</span>
+                  <span>Online {fmt(st.online_count)} ราย</span>
+                  <span>ทั้งหมด {fmt(st.holders)}</span>
+                </div>
+                <span className={st.quorum_reached ? "hc-ok" : "hc-bad"}>{st.quorum_reached ? "✓ ครบองค์ประชุม" : "ยังไม่ครบองค์ประชุม"}</span>
               </div>
             )}
 

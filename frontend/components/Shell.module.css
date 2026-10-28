@@ -1,7 +1,7 @@
 /* ===== Mobile (default): app bar + bottom tabs ===== */
 .root { min-height: 100vh; display: flex; flex-direction: column; }
 .side { display: none; }
-.top { position: sticky; top: 0; z-index: 50; background: linear-gradient(90deg, var(--primary-dark), var(--primary)); color: #fff; display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+.top { position: sticky; top: 0; z-index: 50; background: var(--primary); color: #fff; display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
 .roleBadge { background: rgba(255,255,255,.2); font-size: 11px; padding: 2px 10px; border-radius: 20px; }
 .meet { display: none; }
 .pageTitle { flex: 1; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

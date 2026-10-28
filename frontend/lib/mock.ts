@@ -35,7 +35,7 @@ function seed(): State {
     mk(5, "5", "พิจารณาเลือกตั้งกรรมการแทนกรรมการที่ออกตามวาระ", "pending", "ordinary"),
     mk(6, "6", "พิจารณาแก้ไขเพิ่มเติมข้อบังคับของบริษัท", "pending", "special"),
   ];
-  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString(), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, quorum_pct: 25 };
+  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, quorum_pct: 25 };
   const regs: Record<string, Reg> = {};
   const now = new Date().toISOString();
   HOLDERS.slice(0, 8).forEach((h, i) => { regs[h.account_id] = { type: i === 2 ? "proxy" : "person", channel: "onsite", vote_mode: "self", shares: h.shares, at: now }; });
