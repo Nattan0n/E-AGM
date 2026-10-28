@@ -117,7 +117,7 @@ function Ballots({ toast }: Ctx) {
               </div>
               <p className={b.hint}>โปรดทำเครื่องหมาย (/) ลงในกรอบสี่เหลี่ยมที่ท่านต้องการลงมติ</p>
               <div className={b.boxes}>
-                {[["เห็นด้วย", "In favor"], ["ไม่เห็นด้วย", "Against"], ["งดออกเสียง", "Abstain"], ["บัตรเสีย", "Spoiled"]].map(([l, e]) => <div key={l}><i /><span>{l}<small>({e})</small></span></div>)}
+                {[["เห็นด้วย", "In favor"], ["ไม่เห็นด้วย", "Against"], ["งดออกเสียง", "Abstain"]].map(([l, e]) => <div key={l}><i /><span>{l}<small>({e})</small></span></div>)}
               </div>
               <footer>ลงชื่อผู้ถือหุ้น / ผู้รับมอบฉันทะ ........................................ &nbsp;&nbsp; เจ้าหน้าที่ ........................................</footer>
               {denied && <div className={b.mark}>ไม่มีสิทธิ์ออกเสียง</div>}

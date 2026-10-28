@@ -19,7 +19,7 @@
 .who > div:first-child b { white-space: normal; }
 .agenda { background: #f1f5f9; border-radius: 8px; padding: 10px 12px; }
 .agenda b { font-size: 15px; line-height: 1.4; }
-.boxes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 14px; }
+.boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; }
 .boxes div { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
 .boxes i { width: 22px; height: 22px; border: 2px solid #0f172a; border-radius: 4px; flex-shrink: 0; }
 .ballot footer { font-size: 11px; color: #475569; margin-top: 4px; }
