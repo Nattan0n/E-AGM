@@ -59,6 +59,7 @@ function Members({ id, canWrite, toast }: Ctx & { id: string }) {
     <>
       <div className={styles.row} style={{ justifyContent: "space-between" }}>
         <Link href="/staff/register" className={styles.back}>← กลับไปหน้าลงทะเบียน</Link>
+        <Link className={`${styles.btn} ${styles.sm} ${styles.bPri}`} href={`/staff/ballots?group=${encodeURIComponent(id)}`}><Icon name="print" size={15} className="ico-inl" />พิมพ์บัตรลงคะแนนทั้งกลุ่ม</Link>
         <button className={`${styles.btn} ${styles.sm}`} disabled={!members || members.length === 0} onClick={() => window.print()}><Icon name="print" size={15} className="ico-inl" />พิมพ์ใบสรุปเข้าประชุม</button>
       </div>
       <div className={styles.card}>

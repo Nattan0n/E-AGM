@@ -141,6 +141,7 @@ function Individual({ canWrite, toast }: Ctx) {
 interface Member { h: HolderItem; shares: string }
 
 function Group({ canWrite, toast }: Ctx) {
+  const router = useRouter();
   const { data: groups, loading, error, reload } = useApi<GroupItem[]>("/api/registration/groups");
   const { data: stats } = useApi<Stats>("/api/stats");
   const [name, setName] = useState("");
@@ -158,9 +159,10 @@ function Group({ canWrite, toast }: Ctx) {
   async function submit() {
     setBusy(true);
     try {
-      await api("/api/registration/group", { method: "POST", body: { name: name.trim(), members: members.map((m) => ({ account_id: m.h.account_id, shares: Number(m.shares) })) } });
-      toast("ลงทะเบียนกลุ่มสำเร็จ");
+      const g = await api<{ id: number }>("/api/registration/group", { method: "POST", body: { name: name.trim(), members: members.map((m) => ({ account_id: m.h.account_id, shares: Number(m.shares) })) } });
+      toast("ลงทะเบียนกลุ่มสำเร็จ — พิมพ์บัตรลงคะแนนได้เลย");
       setName(""); setMembers([]);
+      if (g?.id) { router.push(`/staff/ballots?group=${g.id}`); return; }
       await reload();
     } catch (e) { toast(errMsg(e), true); }
     finally { setBusy(false); }

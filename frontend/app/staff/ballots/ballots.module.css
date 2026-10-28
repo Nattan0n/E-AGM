@@ -1,8 +1,19 @@
-.sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-.ballot { background: #fff; border: 1.5px dashed #94a3b8; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; color: #0f172a; break-inside: avoid; }
+.sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.ballot { position: relative; background: #fff; border: 1.5px dashed #94a3b8; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; color: #0f172a; break-inside: avoid; }
 .ballot header { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; }
 .ballot header b { color: #1e3a8a; }
-.who { display: grid; grid-template-columns: 1.6fr auto auto; gap: 14px; }
+.who { display: grid; grid-template-columns: 1.6fr auto auto; gap: 14px; flex: 1; min-width: 0; }
+.top { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; }
+.top .who { grid-template-columns: 1fr auto; }
+.bc { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; } .bc small { font-size: 10px; color: #334155; }
+.proxy { display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; } .proxy small { font-size: 11px; color: #64748b; } .proxy span { font-weight: 600; }
+.hint { font-size: 11.5px; color: #475569; }
+.chk { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; cursor: pointer; } .chk input { width: 16px; height: 16px; }
+.agenda span { display: block; font-size: 12px; color: #475569; margin-top: 2px; }
+.boxes small { display: block; font-size: 10.5px; font-weight: 400; color: #64748b; line-height: 1.1; }
+.denied { background: #f8fafc; }
+.mark { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; font-weight: 800; color: rgba(220, 38, 38, .28); transform: rotate(-18deg); letter-spacing: 2px; pointer-events: none; text-align: center; }
+.slip { border-style: solid; border-color: #1e3a8a; }
 .who small, .agenda small { display: block; font-size: 11px; color: #64748b; }
 .who b { font-size: 14px; white-space: nowrap; }
 .who > div:first-child b { white-space: normal; }
