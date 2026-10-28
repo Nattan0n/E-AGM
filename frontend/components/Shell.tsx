@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect } from "react";
+import { Fragment, ReactNode, useEffect } from "react";
 import { clearSession, StaffSession } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -10,7 +10,7 @@ import { LogoMark } from "@/components/brand/Logo";
 import type { Meeting } from "@/lib/types";
 import styles from "./Shell.module.css";
 
-export interface NavItem { href: string; label: string; icon: IconName }
+export interface NavItem { href: string; label: string; icon: IconName; section?: string }
 
 export const STAFF_NAV: NavItem[] = [
   { href: "/staff", label: "ค้นหา", icon: "search" },
@@ -49,6 +49,8 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   const { data: fetched } = useApi<Meeting>("/api/meeting");
   useEffect(() => { if (fetched) meetingCache = fetched; }, [fetched]);
   const meeting = fetched ?? meetingCache;
+  // Admin can do everything staff can: show the on-site (staff) menu under the admin one.
+  const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))] : nav;
   const active = (h: string) => (h === "/staff" || h === "/admin" ? path === h : path.startsWith(h));
   const logout = () => { clearSession("staff"); router.replace("/"); };
   const display = session.name || session.username;
@@ -64,10 +66,13 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
           <b className={styles.lbl}>E-AGM</b>
         </div>
         <nav aria-label="เมนูหลัก" className={styles.nav}>
-          {nav.map((n) => (
-            <Link key={n.href} href={n.href} className={active(n.href) ? styles.on : ""} title={n.label}>
-              <Icon name={n.icon} size={19} /><span className={styles.lbl}>{n.label}</span>
-            </Link>
+          {items.map((n) => (
+            <Fragment key={n.href}>
+              {n.section && <div className={styles.navSec}><span className={styles.lbl}>{n.section}</span></div>}
+              <Link href={n.href} className={active(n.href) ? styles.on : ""} title={n.label}>
+                <Icon name={n.icon} size={19} /><span className={styles.lbl}>{n.label}</span>
+              </Link>
+            </Fragment>
           ))}
         </nav>
         <div className={styles.me}>
@@ -94,7 +99,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
       <main className={styles.main}>{children}</main>
 
       <nav className={styles.tabs} aria-label="เมนูมือถือ">
-        {nav.map((n) => (
+        {items.map((n) => (
           <Link key={n.href} href={n.href} className={active(n.href) ? styles.on : ""}>
             <Icon name={n.icon} size={22} />
             <small>{n.label}</small>
