@@ -24,13 +24,24 @@
 .boxes i { width: 22px; height: 22px; border: 2px solid #0f172a; border-radius: 4px; flex-shrink: 0; }
 .ballot footer { font-size: 11px; color: #475569; margin-top: 4px; }
 
+.sign { display: flex; gap: 14mm; margin-top: auto; padding-top: 14mm; font-size: 11px; color: #475569; }
+.sign span { flex: 1; border-top: 1px solid #0f172a; padding-top: 3px; text-align: center; }
+.boxes { margin: 3mm 0; }
+@page { size: A4 portrait; margin: 8mm; }
 @media print {
-  :global(body) { background: #fff !important; }
-  :global(#app-root) { opacity: 1 !important; }
-  :global(aside), :global(header[class*="top"]), :global(nav), .noprint { display: none !important; }
-  :global(main) { padding: 0 !important; margin: 0 !important; }
-  .sheets { display: block; }
-  .ballot { border: 2px solid #0f172a; border-radius: 0; margin: 0 0 12mm; page-break-after: always; padding: 14mm; }
-  .ballot header { display: flex; }
-  .ballot:last-child { page-break-after: auto; }
+  :global(body.print-ballots) { background: #fff !important; }
+  :global(body.print-ballots) :global(#app-root) { opacity: 1 !important; }
+  :global(body.print-ballots) :global(#app-root) > div { display: block !important; }
+  :global(body.print-ballots) :global(aside), :global(body.print-ballots) :global(header[class*="top"]), :global(body.print-ballots) :global(nav), :global(body.print-ballots) .noprint { display: none !important; }
+  :global(body.print-ballots) :global(main) { padding: 0 !important; margin: 0 !important; max-width: none !important; width: 100% !important; }
+  :global(body.print-ballots) :global(main) > * { animation: none !important; }
+  .sheets { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; align-items: stretch; }
+  .ballot { height: 128mm; border: 1px dashed #475569; border-radius: 0; padding: 5mm; gap: 3.2mm; break-inside: avoid; page-break-inside: avoid; box-shadow: none; overflow: hidden; }
+  .ballot header { font-size: 10.5px; }
+  .who b { font-size: 13px; }
+  .agenda b { font-size: 13.5px; }
+  .boxes div { font-size: 13px; }
+  .slip { border: 1px solid #1e3a8a; }
+  .mark { font-size: 26px; color: rgba(220, 38, 38, .35); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .agenda, .denied { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

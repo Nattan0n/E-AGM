@@ -1,9 +1,9 @@
 .sheet { display: none; }
 
 @media print {
-  :global(body) { background: #fff !important; }
-  :global(#app-root) { opacity: 1 !important; }
-  :global(body) * { visibility: hidden; }
+  :global(body.print-sheet) { background: #fff !important; }
+  :global(body.print-sheet) :global(#app-root) { opacity: 1 !important; }
+  :global(body.print-sheet) * { visibility: hidden; }
   .sheet, .sheet * { visibility: visible; }
   .sheet { display: block; position: absolute; left: 0; top: 0; width: 100%; color: #0f172a; font-size: 13px; padding: 10mm; }
   .sheet h1 { font-size: 20px; color: #1e3a8a; margin-bottom: 2px; }

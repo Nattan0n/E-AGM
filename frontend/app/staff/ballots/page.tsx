@@ -22,6 +22,7 @@ const TYPE: Record<string, string> = { ordinary: "มติทั่วไป (�
 interface Person { account_id: string; name: string; shares: number; note: string }
 
 function Ballots({ toast }: Ctx) {
+  useEffect(() => { document.body.classList.add("print-ballots"); return () => document.body.classList.remove("print-ballots"); }, []);
   const params = useSearchParams();
   const acc = params.get("acc") ?? "";
   const gid = params.get("group") ?? "";
@@ -91,7 +92,7 @@ function Ballots({ toast }: Ctx) {
               <div className={b.bc}><Barcode value={p.account_id} /><small>{p.account_id}</small></div>
             </div>
             <div className={b.agenda}><small>ประเภทการเข้าร่วม</small><b>{p.note === "-" ? "มาด้วยตนเอง" : p.note}</b></div>
-            <footer>ลงชื่อผู้ถือหุ้น / ผู้รับมอบฉันทะ ........................................ &nbsp;&nbsp; เจ้าหน้าที่ ........................................</footer>
+            <div className={b.sign}><span>ลงชื่อผู้ถือหุ้น / ผู้รับมอบฉันทะ</span><span>เจ้าหน้าที่</span></div>
           </section>
         ))}
         {ready && people!.flatMap((p) => votable.map((a) => {
@@ -119,7 +120,7 @@ function Ballots({ toast }: Ctx) {
               <div className={b.boxes}>
                 {[["เห็นด้วย", "In favor"], ["ไม่เห็นด้วย", "Against"], ["งดออกเสียง", "Abstain"]].map(([l, e]) => <div key={l}><i /><span>{l}<small>({e})</small></span></div>)}
               </div>
-              <footer>ลงชื่อผู้ถือหุ้น / ผู้รับมอบฉันทะ ........................................ &nbsp;&nbsp; เจ้าหน้าที่ ........................................</footer>
+              <div className={b.sign}><span>ลงชื่อผู้ถือหุ้น / ผู้รับมอบฉันทะ</span><span>เจ้าหน้าที่</span></div>
               {denied && <div className={b.mark}>ไม่มีสิทธิ์ออกเสียง</div>}
             </section>
           );

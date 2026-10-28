@@ -1,6 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
-import { Suspense, use, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
 import Link from "next/link";
 import { api, errMsg, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -18,6 +18,7 @@ function Inner({ params }: { params: Promise<{ id: string }> }) {
 }
 
 function Members({ id, canWrite, toast }: Ctx & { id: string }) {
+  useEffect(() => { document.body.classList.add("print-sheet"); return () => document.body.classList.remove("print-sheet"); }, []);
   const { data: members, loading, error, reload } = useApi<GroupMember[]>(`/api/registration/groups/${encodeURIComponent(id)}`);
   const { data: groups, reload: reloadGroups } = useApi<GroupItem[]>("/api/registration/groups");
   const { data: stats } = useApi<Stats>("/api/stats");
