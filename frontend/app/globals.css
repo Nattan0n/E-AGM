@@ -457,7 +457,7 @@ html:not([data-ready]) #app-root { opacity: 0; }
   filter: blur(20px); animation: lavaSpin 26s linear infinite;
 }
 @media (min-width: 1024px) {
-  .lava-m.lava-m::before, .lava-m.lava-m::after, .ad-head::before, .ad-head::after { content: none; }
+  .lava-m.lava-m::before, .lava-m.lava-m::after, .ad-head::before, .ad-head::after, .ad-vc-now::before, .ad-vc-now::after { content: none; }
   .ad-head { overflow: visible; isolation: auto; }
 }
 @keyframes lavaDrift {
