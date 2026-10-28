@@ -1,4 +1,6 @@
 // Thin fetch wrapper for the Go API. Tokens live in sessionStorage (cleared when the tab closes).
+import { MOCK, mockApi } from "./mock";
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export type Session = "staff" | "holder";
@@ -33,6 +35,10 @@ export async function api<T = unknown>(
     const s = getSession(kind);
     if (s?.token) headers.Authorization = `Bearer ${s.token}`;
   }
+  if (MOCK) {
+    try { return (await mockApi(path, opts.method ?? "GET", opts.body as Record<string, unknown> | undefined)) as T; }
+    catch (e) { throw new ApiError((e as { __mockStatus?: number }).__mockStatus ?? 400, errMsg(e)); }
+  }
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, { method: opts.method ?? "GET", headers, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
@@ -58,6 +64,12 @@ export const errMsg = (e: unknown) => (e instanceof Error ? e.message : "เก�
 
 /** Authenticated download (e.g. CSV export) - a plain link cannot send the Authorization header. */
 export async function download(path: string, filename: string) {
+  if (MOCK) {
+    const csv = "﻿วาระ,เห็นด้วย,ไม่เห็นด้วย,งดออกเสียง\n(ข้อมูลตัวอย่างจากโหมดทดลอง)\n";
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+    return;
+  }
   const s = getSession<StaffSession>("staff");
   const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${s?.token ?? ""}` } });
   if (!res.ok) throw new ApiError(res.status, "ดาวน์โหลดไม่สำเร็จ");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/brand/Logo";
 import s from "./page.module.css";
+import { DemoEntry } from "@/components/DemoEntry";
 
 export default function Home() {
   return (
@@ -36,6 +37,7 @@ export default function Home() {
             <span className={s.go} aria-hidden="true">เข้าสู่ระบบ →</span>
           </Link>
         </div>
+        <DemoEntry />
         <p className={s.foot}>© E-AGM · Thai Rung Union Car PCL</p>
       </main>
     </div>
