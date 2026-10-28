@@ -438,34 +438,39 @@ html:not([data-ready]) #app-root { opacity: 0; }
   .adm-kpis-3 .adm-kpi { padding: 12px; } .adm-kpis-3 .adm-kpi b { font-size: 22px; }
 }
 
-/* ===== lava-lamp motion for the blue hero boxes (same idea as the gradients-bg backdrop) ===== */
-.lava.lava, .lava-m.lava-m, .adm-vc-now, .adm-head { position: relative; overflow: hidden; isolation: isolate; }
+/* ===== lava-lamp motion for the blue hero boxes (same idea as the gradients-bg backdrop) =====
+   Kept cheap on purpose: no blur filters (the radial gradients already fade out softly), small oversize and
+   transform-only animation, so phones can run it on the compositor. */
+.lava.lava, .lava-m.lava-m, .adm-vc-now, .adm-head { position: relative; overflow: hidden; isolation: isolate; contain: paint; }
 .lava.lava::before, .lava-m.lava-m::before, .adm-vc-now::before, .adm-head::before {
-  content: ""; position: absolute; inset: -35%; width: auto; height: auto; border-radius: 0; z-index: -1; pointer-events: none; will-change: transform;
+  content: ""; position: absolute; inset: -22%; width: auto; height: auto; border-radius: 0; z-index: -1; pointer-events: none; will-change: transform;
   background:
     radial-gradient(circle at 18% 32%, rgba(6, 182, 212, .65) 0, transparent 34%),
     radial-gradient(circle at 82% 22%, rgba(129, 140, 248, .6) 0, transparent 36%),
     radial-gradient(circle at 62% 82%, rgba(56, 189, 248, .5) 0, transparent 38%);
-  filter: blur(14px); animation: lavaDrift 13s ease-in-out infinite alternate;
+  animation: lavaDrift 13s ease-in-out infinite alternate;
 }
 .lava.lava::after, .lava-m.lava-m::after, .adm-vc-now::after, .adm-head::after {
-  content: ""; position: absolute; inset: -50%; width: auto; height: auto; border-radius: 0; z-index: -1; pointer-events: none; will-change: transform;
+  content: ""; position: absolute; inset: -22%; width: auto; height: auto; border-radius: 0; z-index: -1; pointer-events: none; will-change: transform;
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, .2) 0, transparent 22%),
     radial-gradient(circle at 28% 72%, rgba(30, 58, 138, .75) 0, transparent 40%),
     radial-gradient(circle at 74% 38%, rgba(34, 211, 238, .4) 0, transparent 30%);
-  filter: blur(20px); animation: lavaSpin 26s linear infinite;
+  animation: lavaDrift2 19s ease-in-out infinite alternate;
 }
 @media (min-width: 1024px) {
   .lava-m.lava-m::before, .lava-m.lava-m::after, .adm-head::before, .adm-head::after, .adm-vc-now::before, .adm-vc-now::after { content: none; }
-  .adm-head { overflow: visible; isolation: auto; }
+  .adm-head { overflow: visible; isolation: auto; contain: none; }
 }
 @keyframes lavaDrift {
   0% { transform: translate(-7%, -5%) rotate(0deg) scale(1); }
   50% { transform: translate(8%, 6%) rotate(9deg) scale(1.14); }
   100% { transform: translate(-4%, 9%) rotate(-7deg) scale(1.06); }
 }
-@keyframes lavaSpin { to { transform: rotate(360deg); } }
+@keyframes lavaDrift2 {
+  0% { transform: translate(6%, 4%) scale(1.04); }
+  100% { transform: translate(-7%, -6%) scale(1.14); }
+}
 @media (prefers-reduced-motion: reduce) {
   .lava.lava::before, .lava.lava::after, .lava-m.lava-m::before, .lava-m.lava-m::after, .adm-vc-now::before, .adm-vc-now::after, .adm-head::before, .adm-head::after { animation: none; }
 }
