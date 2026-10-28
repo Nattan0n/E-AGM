@@ -20,12 +20,12 @@ function prettyDetail(d: string): string {
 }
 
 function cat(a: string): string {
-  if (a.startsWith("vote") || a.startsWith("novote")) return "ad-chip-blue";
-  if (a.startsWith("register") || a.startsWith("convert") || a.startsWith("group") || a === "late_arrival") return "ad-chip-green";
-  if (a.startsWith("agenda") || a.startsWith("user") || a.startsWith("meeting")) return "ad-chip-purple";
-  if (a === "otp_fail") return "ad-chip-red";
-  if (a === "login" || a.startsWith("otp")) return "ad-chip-cyan";
-  return "ad-chip-amber";
+  if (a.startsWith("vote") || a.startsWith("novote")) return "adm-chip-blue";
+  if (a.startsWith("register") || a.startsWith("convert") || a.startsWith("group") || a === "late_arrival") return "adm-chip-green";
+  if (a.startsWith("agenda") || a.startsWith("user") || a.startsWith("meeting")) return "adm-chip-purple";
+  if (a === "otp_fail") return "adm-chip-red";
+  if (a === "login" || a.startsWith("otp")) return "adm-chip-cyan";
+  return "adm-chip-amber";
 }
 function oneLine(d: string): string {
   try { const o = JSON.parse(d); return typeof o === "object" && o ? Object.entries(o).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ") : String(d); } catch { return d; }
@@ -49,28 +49,28 @@ function Body() {
   return (
     <>
       <PageHead title="Audit Log" sub={`บันทึกกิจกรรมทั้งหมดในระบบ · ${total.toLocaleString("th-TH")} รายการ`} actions={<button className="btn" onClick={reload}>⟳ รีเฟรช</button>} />
-      <form className="ad-filter" onSubmit={submit}>
-        <label className="ad-fl">การกระทำ
+      <form className="adm-filter" onSubmit={submit}>
+        <label className="adm-fl">การกระทำ
           <select id="act" value={action} onChange={(e) => { setAction(e.target.value); setPage(0); }}>
             <option value="">ทั้งหมด</option>
             {ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
           </select></label>
-        <div className="ad-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input id="aq" aria-label="ค้นหา เลขบัญชี รายละเอียด" placeholder="ค้นหา เลขบัญชี / รายละเอียด" value={qInput} onChange={(e) => setQInput(e.target.value)} /></div>
+        <div className="adm-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input id="aq" aria-label="ค้นหา เลขบัญชี รายละเอียด" placeholder="ค้นหา เลขบัญชี / รายละเอียด" value={qInput} onChange={(e) => setQInput(e.target.value)} /></div>
         <button type="submit" className="btn btn-primary">ค้นหา</button>
-        <span className="ad-count muted">{total.toLocaleString("th-TH")} รายการ</span>
+        <span className="adm-count muted">{total.toLocaleString("th-TH")} รายการ</span>
       </form>
       <State loading={loading && !data} error={data ? "" : error} empty={data?.items.length === 0} emptyText="ไม่พบรายการ">
         {desktop ? (
-          <div className="ad-card ad-tablecard">
-            <table className="ad-table">
+          <div className="adm-card adm-tablecard">
+            <table className="adm-table">
               <thead><tr><th>เวลา</th><th>การกระทำ</th><th>บัญชี</th><th>รายละเอียด</th><th>IP</th></tr></thead>
               <tbody>
                 {data?.items.map((r) => (
                   <tr key={r.id}>
                     <td style={{ whiteSpace: "nowrap" }}>{r.created_at}</td>
-                    <td><span className={`ad-chip ${cat(r.action)}`}>{r.action}</span></td>
+                    <td><span className={`adm-chip ${cat(r.action)}`}>{r.action}</span></td>
                     <td>{r.acc_id || "-"}</td>
-                    <td>{r.detail ? <span className="ad-d1" title={prettyDetail(r.detail)}>{oneLine(r.detail)}</span> : "-"}</td>
+                    <td>{r.detail ? <span className="adm-d1" title={prettyDetail(r.detail)}>{oneLine(r.detail)}</span> : "-"}</td>
                     <td className="mono">{r.ip}</td>
                   </tr>
                 ))}
@@ -78,14 +78,14 @@ function Body() {
             </table>
           </div>
         ) : (
-          <ol className="ad-timeline">
+          <ol className="adm-timeline">
             {data?.items.map((r) => (
               <li key={r.id}>
-                <span className={`ad-tl-dot ${cat(r.action)}`} aria-hidden />
-                <div className="ad-tl-card">
-                  <div className="ad-tl-h"><b>{r.action}</b><time>{r.created_at}</time></div>
-                  {r.detail && <p className="ad-tl-d">{oneLine(r.detail)}</p>}
-                  <div className="ad-tl-f"><span className={`ad-chip ${cat(r.action)}`}>{r.action.split("_")[0].toUpperCase()}</span><span className="muted">{r.acc_id || "-"} · {r.ip}</span></div>
+                <span className={`adm-tl-dot ${cat(r.action)}`} aria-hidden />
+                <div className="adm-tl-card">
+                  <div className="adm-tl-h"><b>{r.action}</b><time>{r.created_at}</time></div>
+                  {r.detail && <p className="adm-tl-d">{oneLine(r.detail)}</p>}
+                  <div className="adm-tl-f"><span className={`adm-chip ${cat(r.action)}`}>{r.action.split("_")[0].toUpperCase()}</span><span className="muted">{r.acc_id || "-"} · {r.ip}</span></div>
                 </div>
               </li>
             ))}

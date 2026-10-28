@@ -30,13 +30,13 @@ function Body() {
     <>
       <PageHead title="ส่งออกรายงาน" sub="ดาวน์โหลดรายงานการประชุมในรูปแบบต่าง ๆ" />
       <State loading={loading} error={error} empty={data?.length === 0} emptyText="ยังไม่มีข้อมูลการประชุม">
-        <div className="ad-exgrid">
-          <section className="ad-card ad-ex top-blue" aria-labelledby="rc-csv">
-            <span className="ad-ex-ic" style={{ background: "#dbeafe" }} aria-hidden><Icon name="chart" size={22} style={{ color: "#1d4ed8" }} /></span>
+        <div className="adm-exgrid">
+          <section className="adm-card adm-ex top-blue" aria-labelledby="rc-csv">
+            <span className="adm-ex-ic" style={{ background: "#dbeafe" }} aria-hidden><Icon name="chart" size={22} style={{ color: "#1d4ed8" }} /></span>
             <div><b id="rc-csv">ผลการลงคะแนนรายวาระ</b>
               <p className="muted">เห็นด้วย / ไม่เห็นด้วย / งดออกเสียง / บัตรเสีย และผลของแต่ละวาระ</p></div>
-            <div className="ad-pills"><span className="ad-chip ad-chip-blue">CSV</span>{y && <span className="ad-chip">ปี {y}</span>}</div>
-            <div className="ad-ex-foot">
+            <div className="adm-pills"><span className="adm-chip adm-chip-blue">CSV</span>{y && <span className="adm-chip">ปี {y}</span>}</div>
+            <div className="adm-ex-foot">
               <label className="label" htmlFor="yr">ปีการประชุม</label>
               <select id="yr" className="input" value={y} onChange={(e) => setYear(e.target.value)}>
                 {data?.map((m) => <option key={m.year} value={m.year}>{m.year}{m.closed_at ? " (ปิดแล้ว)" : ""}</option>)}
@@ -45,11 +45,11 @@ function Body() {
             </div>
           </section>
           {SOON.map((s) => (
-            <section key={s.title} className={`ad-card ad-ex soon top-${s.c}`} aria-disabled="true">
-              <span className="ad-ex-ic" aria-hidden><Icon name={s.icon} size={22} style={{ color: "#1e3a8a" }} /></span>
+            <section key={s.title} className={`adm-card adm-ex soon top-${s.c}`} aria-disabled="true">
+              <span className="adm-ex-ic" aria-hidden><Icon name={s.icon} size={22} style={{ color: "#1e3a8a" }} /></span>
               <div><b>{s.title}</b><p className="muted">{s.desc}</p></div>
-              <div className="ad-pills">{s.fmts.map((f) => <span key={f} className="ad-chip">{f}</span>)}<span className="ad-chip ad-chip-amber">เร็ว ๆ นี้</span></div>
-              <div className="ad-ex-foot"><button className="btn btn-block" disabled>เร็ว ๆ นี้</button></div>
+              <div className="adm-pills">{s.fmts.map((f) => <span key={f} className="adm-chip">{f}</span>)}<span className="adm-chip adm-chip-amber">เร็ว ๆ นี้</span></div>
+              <div className="adm-ex-foot"><button className="btn btn-block" disabled>เร็ว ๆ นี้</button></div>
             </section>
           ))}
         </div>

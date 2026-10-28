@@ -60,26 +60,26 @@ function Body() {
     <>
       <PageHead title="จัดการผู้ใช้งาน" sub={desktop ? "เพิ่ม แก้ไข และกำหนดสิทธิ์ผู้ใช้ระบบ E-AGM" : "จัดการสิทธิ์และบัญชีผู้ใช้ในระบบ E-AGM"} actions={<button className="btn btn-primary" onClick={() => open(EMPTY)}>+ เพิ่มผู้ใช้</button>} />
       {desktop ? (
-        <div className="ad-filter">
-          <label className="ad-fl">Role
+        <div className="adm-filter">
+          <label className="adm-fl">Role
             <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | "")}>
               <option value="">ทั้งหมด</option>{ROLES.map((r) => <option key={r.k} value={r.k}>{r.label}</option>)}
             </select></label>
-          <label className="ad-fl">สถานะ
+          <label className="adm-fl">สถานะ
             <select value={stFilter} onChange={(e) => setStFilter(e.target.value)}>
               <option value="">ทั้งหมด</option><option value="on">ใช้งาน</option><option value="off">ปิดใช้งาน</option>
             </select></label>
-          <div className="ad-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input aria-label="ค้นหาผู้ใช้" placeholder="ค้นหาชื่อ / username / แผนก" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-          <span className="ad-count muted">ผู้ใช้งาน {data?.length ?? 0} คน</span>
+          <div className="adm-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input aria-label="ค้นหาผู้ใช้" placeholder="ค้นหาชื่อ / username / แผนก" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+          <span className="adm-count muted">ผู้ใช้งาน {data?.length ?? 0} คน</span>
         </div>
       ) : (
         <>
-          <div className="ad-tabs ad-tabs-line" role="group" aria-label="กรองสิทธิ์">
+          <div className="adm-tabs adm-tabs-line" role="group" aria-label="กรองสิทธิ์">
             <button className={roleFilter === "" ? "on" : ""} onClick={() => setRoleFilter("")}>ทั้งหมด ({data?.length ?? 0})</button>
             {ROLES.map((r) => <button key={r.k} className={roleFilter === r.k ? "on" : ""} onClick={() => setRoleFilter(roleFilter === r.k ? "" : r.k)}>{r.label} ({counts[r.k] ?? 0})</button>)}
           </div>
-          <div className="ad-filter" style={{ marginTop: 12 }}><div className="ad-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input aria-label="ค้นหาผู้ใช้" placeholder="ค้นหาชื่อ / username / แผนก" value={q} onChange={(e) => setQ(e.target.value)} /></div></div>
-          <div className="ad-strip">
+          <div className="adm-filter" style={{ marginTop: 12 }}><div className="adm-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input aria-label="ค้นหาผู้ใช้" placeholder="ค้นหาชื่อ / username / แผนก" value={q} onChange={(e) => setQ(e.target.value)} /></div></div>
+          <div className="adm-strip">
             <div><b className="c-blue">{data?.length ?? 0}</b><span>ทั้งหมด</span></div>
             <div><b className="c-green">{activeN}</b><span>ใช้งานได้</span></div>
             <div><b className="c-gray">{(data?.length ?? 0) - activeN}</b><span>ระงับ</span></div>
@@ -89,42 +89,42 @@ function Body() {
       )}
       <State loading={loading} error={error} empty={rows.length === 0} emptyText="ไม่พบผู้ใช้">
         {desktop ? (
-          <div className="ad-card ad-tablecard">
-            <table className="ad-table">
+          <div className="adm-card adm-tablecard">
+            <table className="adm-table">
               <thead><tr><th>ผู้ใช้</th><th>แผนก</th><th>สิทธิ์</th><th>สถานะ</th><th style={{ textAlign: "right" }}>จัดการ</th></tr></thead>
               <tbody>
                 {rows.map((u) => {
                   const r = ROLES.find((x) => x.k === u.role);
                   return (
                     <tr key={u.id}>
-                      <td><div className="ad-who"><Avatar name={u.fullname || u.username} size={36} /><div><b>{u.fullname || u.username}</b><div className="muted" style={{ fontSize: 11 }}>@{u.username}</div></div></div></td>
+                      <td><div className="adm-who"><Avatar name={u.fullname || u.username} size={36} /><div><b>{u.fullname || u.username}</b><div className="muted" style={{ fontSize: 11 }}>@{u.username}</div></div></div></td>
                       <td>{u.dept || "-"}</td>
-                      <td><span className={`ad-role ad-role-${u.role}`}>{r?.label ?? u.role}</span></td>
-                      <td><span className={`ad-dot ${u.active ? "on" : ""}`}>{u.active ? "ใช้งาน" : "ระงับ"}</span></td>
+                      <td><span className={`adm-role adm-role-${u.role}`}>{r?.label ?? u.role}</span></td>
+                      <td><span className={`adm-dot ${u.active ? "on" : ""}`}>{u.active ? "ใช้งาน" : "ระงับ"}</span></td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button className="ad-act" onClick={() => open({ id: u.id, username: u.username, fullname: u.fullname, dept: u.dept, role: u.role, active: u.active, password: "" })}>แก้ไข / รีเซ็ตรหัส</button>{" "}
-                        <button className={`ad-act ${u.active ? "danger" : ""}`} disabled={busy || u.username === me} title={u.username === me ? "ไม่สามารถปิดบัญชีของตัวเอง" : undefined} onClick={() => toggleActive(u)}>{u.active ? "ปิดใช้งาน" : "เปิดใช้งาน"}</button>
+                        <button className="adm-act" onClick={() => open({ id: u.id, username: u.username, fullname: u.fullname, dept: u.dept, role: u.role, active: u.active, password: "" })}>แก้ไข / รีเซ็ตรหัส</button>{" "}
+                        <button className={`adm-act ${u.active ? "danger" : ""}`} disabled={busy || u.username === me} title={u.username === me ? "ไม่สามารถปิดบัญชีของตัวเอง" : undefined} onClick={() => toggleActive(u)}>{u.active ? "ปิดใช้งาน" : "เปิดใช้งาน"}</button>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-            <div className="ad-tfoot">แสดง {rows.length} จาก {data?.length ?? 0} รายการ</div>
+            <div className="adm-tfoot">แสดง {rows.length} จาก {data?.length ?? 0} รายการ</div>
           </div>
         ) : (
-          <ul className="ad-list">
+          <ul className="adm-list">
             {rows.map((u) => (
-              <li key={u.id} className="ad-urow">
+              <li key={u.id} className="adm-urow">
                 <Avatar name={u.fullname || u.username} size={44} />
-                <div className="ad-urow-m">
+                <div className="adm-urow-m">
                   <b>{u.fullname || u.username}</b>
                   <span className="muted">@{u.username}{u.dept ? ` · ${u.dept}` : ""}</span>
-                  <div className="ad-pills"><span className={`ad-role ad-role-${u.role}`}>{ROLES.find((x) => x.k === u.role)?.label ?? u.role}</span><span className={`ad-dot ${u.active ? "on" : ""}`}>{u.active ? "ใช้งาน" : "ระงับ"}</span></div>
+                  <div className="adm-pills"><span className={`adm-role adm-role-${u.role}`}>{ROLES.find((x) => x.k === u.role)?.label ?? u.role}</span><span className={`adm-dot ${u.active ? "on" : ""}`}>{u.active ? "ใช้งาน" : "ระงับ"}</span></div>
                 </div>
-                <div className="ad-urow-a">
+                <div className="adm-urow-a">
                   <Switch on={u.active} disabled={busy || u.username === me} label={u.username === me ? "ไม่สามารถปิดบัญชีของตัวเอง" : u.active ? `ปิดใช้งาน ${u.username}` : `เปิดใช้งาน ${u.username}`} onChange={() => toggleActive(u)} />
-                  <button className="ad-icobtn" aria-label={`แก้ไข ${u.username}`} onClick={() => open({ id: u.id, username: u.username, fullname: u.fullname, dept: u.dept, role: u.role, active: u.active, password: "" })}><Icon name="edit" size={17} /></button>
+                  <button className="adm-icobtn" aria-label={`แก้ไข ${u.username}`} onClick={() => open({ id: u.id, username: u.username, fullname: u.fullname, dept: u.dept, role: u.role, active: u.active, password: "" })}><Icon name="edit" size={17} /></button>
                 </div>
               </li>
             ))}

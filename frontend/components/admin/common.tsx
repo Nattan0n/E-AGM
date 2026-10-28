@@ -28,26 +28,26 @@ export function AdminFrame({ title, children }: { title: string; children: React
 
 export function PageHead({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="ad-head">
+    <div className="adm-head">
       <div style={{ minWidth: 0 }}>
         <h1>{title}</h1>
-        {sub && <p className="ad-sub">{sub}</p>}
+        {sub && <p className="adm-sub">{sub}</p>}
       </div>
-      {actions && <div className="ad-head-actions">{actions}</div>}
+      {actions && <div className="adm-head-actions">{actions}</div>}
     </div>
   );
 }
 
 export function Live({ children = "อัปเดตสด" }: { children?: ReactNode }) {
-  return <span className="ad-live"><i aria-hidden />{children}</span>;
+  return <span className="adm-live"><i aria-hidden />{children}</span>;
 }
 
 /** Combined status/result chip for an agenda term. */
 export function ResultChip({ t }: { t: Pick<TermResult, "status" | "result"> }) {
-  if (t.status === "pending") return <span className="ad-chip">รอดำเนินการ</span>;
-  if (t.status === "open") return <span className="ad-chip ad-chip-blue"><span className="ico-dot" aria-hidden />กำลังลงคะแนน</span>;
-  const cls = { pass: "ad-chip-green", fail: "ad-chip-red", info: "ad-chip-cyan", pending: "", in_progress: "ad-chip-amber" }[t.result];
-  return <span className={`ad-chip ${cls}`}>{t.result === "pass" ? <Icon name="check" size={12} className="ico-inl" /> : null}{RESULT_LABEL[t.result]}</span>;
+  if (t.status === "pending") return <span className="adm-chip">รอดำเนินการ</span>;
+  if (t.status === "open") return <span className="adm-chip adm-chip-blue"><span className="ico-dot" aria-hidden />กำลังลงคะแนน</span>;
+  const cls = { pass: "adm-chip-green", fail: "adm-chip-red", info: "adm-chip-cyan", pending: "", in_progress: "adm-chip-amber" }[t.result];
+  return <span className={`adm-chip ${cls}`}>{t.result === "pass" ? <Icon name="check" size={12} className="ico-inl" /> : null}{RESULT_LABEL[t.result]}</span>;
 }
 
 const AV = ["#7c3aed", "#2563eb", "#0891b2", "#16a34a", "#d97706", "#db2777", "#4f46e5"];
@@ -56,19 +56,19 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   let h = 0;
   for (const c of n) h = (h * 31 + c.charCodeAt(0)) % 997;
   const c1 = AV[h % AV.length], c2 = AV[(h + 3) % AV.length];
-  return <span className="ad-avatar" aria-hidden style={{ width: size, height: size, fontSize: size * 0.4, background: `linear-gradient(135deg, ${c1}, ${c2})` }}>{n.charAt(0).toUpperCase()}</span>;
+  return <span className="adm-avatar" aria-hidden style={{ width: size, height: size, fontSize: size * 0.4, background: `linear-gradient(135deg, ${c1}, ${c2})` }}>{n.charAt(0).toUpperCase()}</span>;
 }
 
 export function Switch({ on, onChange, disabled, label }: { on: boolean; onChange: () => void; disabled?: boolean; label: string }) {
-  return <button type="button" role="switch" aria-checked={on} aria-label={label} title={label} disabled={disabled} className={`ad-switch${on ? " on" : ""}`} onClick={onChange}><i /></button>;
+  return <button type="button" role="switch" aria-checked={on} aria-label={label} title={label} disabled={disabled} className={`adm-switch${on ? " on" : ""}`} onClick={onChange}><i /></button>;
 }
 
 export function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
   return (
-    <nav aria-label="แบ่งหน้า" className="ad-pager">
-      <button className="ad-pbtn" disabled={page === 0} onClick={() => onPage(page - 1)} aria-label="ก่อนหน้า">‹</button>
+    <nav aria-label="แบ่งหน้า" className="adm-pager">
+      <button className="adm-pbtn" disabled={page === 0} onClick={() => onPage(page - 1)} aria-label="ก่อนหน้า">‹</button>
       <span className="muted" style={{ fontSize: 13 }}>หน้า {page + 1} / {pages}</span>
-      <button className="ad-pbtn" disabled={page + 1 >= pages} onClick={() => onPage(page + 1)} aria-label="ถัดไป">›</button>
+      <button className="adm-pbtn" disabled={page + 1 >= pages} onClick={() => onPage(page + 1)} aria-label="ถัดไป">›</button>
     </nav>
   );
 }
@@ -76,7 +76,7 @@ export function Pager({ page, pages, onPage }: { page: number; pages: number; on
 export function ClosedBanner({ meeting }: { meeting: Meeting | null | undefined }) {
   if (!meeting?.closed_at) return null;
   return (
-    <div className="ad-banner" role="alert">
+    <div className="adm-banner" role="alert">
       <Icon name="lock" size={14} className="ico-inl" />การประชุมปี {meeting.year} ปิดแล้ว - ข้อมูลเป็นแบบอ่านอย่างเดียว ไม่สามารถแก้ไขได้
     </div>
   );
@@ -104,7 +104,7 @@ export function useToastAction() {
 export function State({ loading, error, empty, emptyText = "ไม่มีข้อมูล", children }: { loading: boolean; error: string; empty?: boolean; emptyText?: string; children: ReactNode }) {
   if (loading) return <div className="skeleton-rows" role="status" aria-label="กำลังโหลด"><div className="skeleton" style={{ height: 84 }} /><div className="skeleton" style={{ height: 220 }} /><div className="skeleton" style={{ height: 120 }} /></div>;
   if (error) return <p className="error-text" role="alert">{error}</p>;
-  if (empty) return <div className="ad-empty">{emptyText}</div>;
+  if (empty) return <div className="adm-empty">{emptyText}</div>;
   return <>{children}</>;
 }
 

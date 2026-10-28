@@ -29,14 +29,14 @@ function useClock() {
 function TermRow({ t }: { t: TermResult }) {
   const started = t.status !== "pending";
   return (
-    <li className={`ad-trow${t.status === "open" ? " live" : ""}`}>
-      <span className="ad-num">{t.term_id}</span>
-      <div className="ad-tname"><b>{t.name}</b></div>
-      <span className="ad-tchip"><ResultChip t={t} /></span>
-      <div className="ad-tbar">
-        {started ? (<><span className="ad-pct">{t.agree_pct.toFixed(1)}%</span><ResultBar t={t} /></>) : <span className="muted">—</span>}
+    <li className={`adm-trow${t.status === "open" ? " live" : ""}`}>
+      <span className="adm-num">{t.term_id}</span>
+      <div className="adm-tname"><b>{t.name}</b></div>
+      <span className="adm-tchip"><ResultChip t={t} /></span>
+      <div className="adm-tbar">
+        {started ? (<><span className="adm-pct">{t.agree_pct.toFixed(1)}%</span><ResultBar t={t} /></>) : <span className="muted">—</span>}
       </div>
-      <span className="ad-tcnt">{started ? fmt(t.voted_count) : ""}</span>
+      <span className="adm-tcnt">{started ? fmt(t.voted_count) : ""}</span>
     </li>
   );
 }
@@ -44,12 +44,12 @@ function TermRow({ t }: { t: TermResult }) {
 function Activity() {
   const { data } = useApi<{ items: AuditRow[] }>("/api/admin/audit?limit=6&offset=0", "staff", 10000);
   return (
-    <div className="ad-card">
-      <div className="ad-card-h">กิจกรรมล่าสุด</div>
-      <ul className="ad-feed">
+    <div className="adm-card">
+      <div className="adm-card-h">กิจกรรมล่าสุด</div>
+      <ul className="adm-feed">
         {(data?.items ?? []).map((r) => (
           <li key={r.id}>
-            <span className="ad-feed-dot">{(r.action || "?").slice(0, 2).toUpperCase()}</span>
+            <span className="adm-feed-dot">{(r.action || "?").slice(0, 2).toUpperCase()}</span>
             <div><b>{r.action}</b><small>{r.acc_id || r.ip}</small></div>
             <time>{r.created_at.slice(-8, -3) || r.created_at}</time>
           </li>
@@ -77,11 +77,11 @@ function Body() {
       <State loading={loading && !data} error={data ? "" : error}>
         {data && st && (
           <>
-            <div className="ad-kpis ad-kpis-3">
-              <div className="ad-kpi"><b className="c-blue">{st.quorum_pct.toFixed(1)}%</b><span>องค์ประชุม</span><small>{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น</small></div>
-              <div className="ad-kpi"><b className="c-green">{fmt(st.onsite_count)}</b><span>Onsite</span><small>{fmt(st.onsite_shares)} หุ้น</small></div>
-              <div className="ad-kpi"><b className="c-cyan">{fmt(st.online_count)}</b><span>Online</span><small>{fmt(st.online_shares)} หุ้น</small></div>
-              <div className="ad-kpi"><b className="c-amber">{fmt(st.late_count)}</b><span>มาสาย</span><small>{fmt(st.late_shares)} หุ้น</small></div>
+            <div className="adm-kpis adm-kpis-3">
+              <div className="adm-kpi"><b className="c-blue">{st.quorum_pct.toFixed(1)}%</b><span>องค์ประชุม</span><small>{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น</small></div>
+              <div className="adm-kpi"><b className="c-green">{fmt(st.onsite_count)}</b><span>Onsite</span><small>{fmt(st.onsite_shares)} หุ้น</small></div>
+              <div className="adm-kpi"><b className="c-cyan">{fmt(st.online_count)}</b><span>Online</span><small>{fmt(st.online_shares)} หุ้น</small></div>
+              <div className="adm-kpi"><b className="c-amber">{fmt(st.late_count)}</b><span>มาสาย</span><small>{fmt(st.late_shares)} หุ้น</small></div>
             </div>
 
             {!desktop && (
@@ -89,7 +89,7 @@ function Body() {
                 <div className="hc-label">สถานะองค์ประชุม</div>
                 <div className="hc-big">{st.quorum_pct.toFixed(2)}%</div>
                 <p className="hc-sub">{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น · ขั้นต่ำ {st.quorum_required_pct}%</p>
-                <div className="ad-prog" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, st.quorum_pct)} aria-label="องค์ประชุม">
+                <div className="adm-prog" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, st.quorum_pct)} aria-label="องค์ประชุม">
                   <span style={{ width: `${Math.min(100, st.quorum_pct)}%` }} />
                   <i title={`เกณฑ์ ${st.quorum_required_pct}%`} style={{ left: `${Math.min(100, st.quorum_required_pct)}%` }} />
                 </div>
@@ -103,21 +103,21 @@ function Body() {
             )}
 
             <div className="grid-2">
-              <div className="ad-card">
-                <div className="ad-card-h"><span>{desktop ? `สถานะวาระการประชุม — ${data.terms.length} วาระ` : "สถานะวาระการประชุม"}</span>
-                  {!desktop && <Link href="/admin/vote-control" className="ad-link">จัดการ →</Link>}</div>
-                {data.terms.length === 0 ? <div className="ad-card-b muted">ยังไม่มีวาระ</div> : (
-                  <ul className="ad-tlist">{data.terms.map((t) => <TermRow key={t.id} t={t} />)}</ul>
+              <div className="adm-card">
+                <div className="adm-card-h"><span>{desktop ? `สถานะวาระการประชุม — ${data.terms.length} วาระ` : "สถานะวาระการประชุม"}</span>
+                  {!desktop && <Link href="/admin/vote-control" className="adm-link">จัดการ →</Link>}</div>
+                {data.terms.length === 0 ? <div className="adm-card-b muted">ยังไม่มีวาระ</div> : (
+                  <ul className="adm-tlist">{data.terms.map((t) => <TermRow key={t.id} t={t} />)}</ul>
                 )}
               </div>
 
-              <div className="ad-side">
+              <div className="adm-side">
                 {desktop && (
-                  <div className="ad-card">
-                    <div className="ad-card-h">สถานะการประชุม</div>
-                    <div className="ad-card-b">
-                      <div className={`ad-status ${closedMeeting ? "off" : ""}`}><i /><span>{closedMeeting ? "ปิดการประชุมแล้ว" : "กำลังดำเนินการ"}</span><small>{data.meeting.date}</small></div>
-                      <div className="ad-mini2">
+                  <div className="adm-card">
+                    <div className="adm-card-h">สถานะการประชุม</div>
+                    <div className="adm-card-b">
+                      <div className={`adm-status ${closedMeeting ? "off" : ""}`}><i /><span>{closedMeeting ? "ปิดการประชุมแล้ว" : "กำลังดำเนินการ"}</span><small>{data.meeting.date}</small></div>
+                      <div className="adm-mini2">
                         <div><b>{doneN}/{data.terms.length}</b><small>วาระเสร็จสิ้น</small></div>
                         <div><b>{clock || "--:--"}</b><small>เวลาปัจจุบัน</small></div>
                       </div>
@@ -125,11 +125,11 @@ function Body() {
                     </div>
                   </div>
                 )}
-                <div className="ad-card">
-                  <div className="ad-card-h ad-upper">Quick actions</div>
-                  <nav aria-label="ทางลัด" className="ad-qas">
+                <div className="adm-card">
+                  <div className="adm-card-h adm-upper">Quick actions</div>
+                  <nav aria-label="ทางลัด" className="adm-qas">
                     {LINKS.map((l) => (
-                      <Link key={l.href} href={l.href} className="ad-qa"><span className="ad-qa-ic" style={{ background: l.c }} aria-hidden><Icon name={l.icon} size={22} style={{ color: "#1e3a8a" }} /></span>{l.label}</Link>
+                      <Link key={l.href} href={l.href} className="adm-qa"><span className="adm-qa-ic" style={{ background: l.c }} aria-hidden><Icon name={l.icon} size={22} style={{ color: "#1e3a8a" }} /></span>{l.label}</Link>
                     ))}
                   </nav>
                 </div>

@@ -44,7 +44,7 @@ function Body() {
         actions={<button className="btn btn-primary" disabled={closed} onClick={() => setForm(EMPTY)}>+ เพิ่มวาระ</button>} />
       <ClosedBanner meeting={meeting} />
       {!desktop && data && (
-        <div className="ad-strip">
+        <div className="adm-strip">
           <div><b className="c-blue">{data.length}</b><span>วาระทั้งหมด</span></div>
           <div><b className="c-green">{cnt("closed")}</b><span>เสร็จแล้ว</span></div>
           <div><b className="c-amber">{cnt("open")}</b><span>กำลังดำเนิน</span></div>
@@ -53,8 +53,8 @@ function Body() {
       )}
       <State loading={loading} error={error} empty={data?.length === 0} emptyText="ยังไม่มีวาระ">
         {desktop ? (
-          <div className="ad-card ad-tablecard">
-            <table className="ad-table">
+          <div className="adm-card adm-tablecard">
+            <table className="adm-table">
               <thead><tr><th style={{ width: 56 }}>#</th><th>ชื่อวาระ</th><th>ประเภท</th><th>สถานะ</th><th>ผู้ลงคะแนน</th><th>เห็นด้วย%</th><th style={{ textAlign: "right" }}>จัดการ</th></tr></thead>
               <tbody>
                 {data?.map((a) => {
@@ -65,14 +65,14 @@ function Body() {
                     <tr key={a.id} className={a.status === "open" ? "live" : ""}>
                       <td><b>{a.term_id}</b></td>
                       <td><b>{a.name}</b>{a.name_en && <div className="muted" style={{ fontSize: 11 }}>{a.name_en}</div>}</td>
-                      <td><span className="ad-chip ad-chip-cyan">{VOTE_TYPE_LABEL[a.vote_type]}</span></td>
+                      <td><span className="adm-chip adm-chip-cyan">{VOTE_TYPE_LABEL[a.vote_type]}</span></td>
                       <td>{r ? <ResultChip t={r} /> : <span className={STATUS_BADGE[a.status]}>{STATUS_LABEL[a.status]}</span>}</td>
                       <td>{started && r ? <b className="c-blue">{fmt(r.voted_count)} ราย</b> : <span className="muted">—</span>}</td>
                       <td>{started && r ? <b className="c-green">{r.agree_pct.toFixed(1)}%</b> : <span className="muted">—</span>}</td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button className="ad-act" disabled={locked} title={a.status !== "pending" ? "แก้ไขได้เฉพาะวาระที่รอเปิด" : undefined}
+                        <button className="adm-act" disabled={locked} title={a.status !== "pending" ? "แก้ไขได้เฉพาะวาระที่รอเปิด" : undefined}
                           onClick={() => setForm({ id: a.id, term_id: a.term_id, name: a.name, name_en: a.name_en, vote_type: a.vote_type })}>แก้ไข</button>{" "}
-                        <button className="ad-act danger" disabled={locked} onClick={() => setDel(a)}>ลบ</button>
+                        <button className="adm-act danger" disabled={locked} onClick={() => setDel(a)}>ลบ</button>
                       </td>
                     </tr>
                   );
@@ -81,24 +81,24 @@ function Body() {
             </table>
           </div>
         ) : (
-          <ul className="ad-list">
+          <ul className="adm-list">
             {data?.map((a) => {
               const locked = closed || a.status !== "pending";
               const r = res(a.id);
               return (
-                <li key={a.id} className={`ad-arow${a.status === "open" ? " live" : ""}${a.status === "pending" ? " dim" : ""}`}>
-                  <span className="ad-num">{a.term_id}</span>
-                  <div className="ad-arow-main">
-                    <div className="ad-arow-t"><b>{a.name}</b>{r ? <ResultChip t={r} /> : <span className={STATUS_BADGE[a.status]}>{STATUS_LABEL[a.status]}</span>}</div>
+                <li key={a.id} className={`adm-arow${a.status === "open" ? " live" : ""}${a.status === "pending" ? " dim" : ""}`}>
+                  <span className="adm-num">{a.term_id}</span>
+                  <div className="adm-arow-main">
+                    <div className="adm-arow-t"><b>{a.name}</b>{r ? <ResultChip t={r} /> : <span className={STATUS_BADGE[a.status]}>{STATUS_LABEL[a.status]}</span>}</div>
                     {a.name_en && <p className="muted" style={{ fontSize: 12 }}>{a.name_en}</p>}
-                    <div className="ad-pills">
-                      <span className="ad-chip">{VOTE_TYPE_LABEL[a.vote_type]}</span>
-                      {r && a.status !== "pending" && <span className="ad-chip ad-chip-blue">{fmt(r.voted_count)} ผู้ลงคะแนน</span>}
+                    <div className="adm-pills">
+                      <span className="adm-chip">{VOTE_TYPE_LABEL[a.vote_type]}</span>
+                      {r && a.status !== "pending" && <span className="adm-chip adm-chip-blue">{fmt(r.voted_count)} ผู้ลงคะแนน</span>}
                     </div>
                   </div>
-                  <div className="ad-arow-act">
-                    <button className="ad-icobtn" aria-label={`แก้ไขวาระ ${a.term_id}`} disabled={locked} onClick={() => setForm({ id: a.id, term_id: a.term_id, name: a.name, name_en: a.name_en, vote_type: a.vote_type })}><Icon name="edit" size={17} /></button>
-                    <button className="ad-icobtn danger" aria-label={`ลบวาระ ${a.term_id}`} disabled={locked} onClick={() => setDel(a)}><Icon name="trash" size={17} /></button>
+                  <div className="adm-arow-act">
+                    <button className="adm-icobtn" aria-label={`แก้ไขวาระ ${a.term_id}`} disabled={locked} onClick={() => setForm({ id: a.id, term_id: a.term_id, name: a.name, name_en: a.name_en, vote_type: a.vote_type })}><Icon name="edit" size={17} /></button>
+                    <button className="adm-icobtn danger" aria-label={`ลบวาระ ${a.term_id}`} disabled={locked} onClick={() => setDel(a)}><Icon name="trash" size={17} /></button>
                   </div>
                 </li>
               );
