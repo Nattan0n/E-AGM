@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, ReactNode, useEffect } from "react";
+import { Fragment, ReactNode, useEffect, useState } from "react";
 import { clearSession, StaffSession } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -38,6 +38,18 @@ let meetingCache: Meeting | null = null;
 
 const ROLE_LABEL = { admin: "Administrator", staff: "เจ้าหน้าที่ทะเบียน", viewer: "ผู้ชมผลการประชุม" } as const;
 
+/** Positions (px from the centre button, y = upwards) for n circular menu items fanned out in one or two arcs. */
+function fanLayout(n: number): { x: number; y: number }[] {
+  const ring = (count: number, r: number, from: number, to: number) =>
+    Array.from({ length: count }, (_, i) => {
+      const a = ((count === 1 ? 90 : from + ((to - from) * i) / (count - 1)) * Math.PI) / 180;
+      return { x: Math.round(r * Math.cos(a)), y: Math.round(r * Math.sin(a)) };
+    });
+  if (n <= 6) return ring(n, 104, 30, 150);
+  const inner = Math.min(5, Math.ceil(n / 2));
+  return [...ring(inner, 96, 28, 152), ...ring(n - inner, 168, 24, 156)];
+}
+
 /**
  * Two layouts from one component (switched by CSS at 1024px, see lib/media.ts):
  *  - Web:    navy sidebar (brand, nav, user + logout) and a top bar with role badge + meeting name
@@ -51,6 +63,19 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   const meeting = fetched ?? meetingCache;
   // Admin can do everything staff can: show the on-site (staff) menu under the admin one.
   const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))] : nav;
+  const [fanOpen, setFanOpen] = useState(false);
+  useEffect(() => { setFanOpen(false); }, [path]);
+  useEffect(() => {
+    if (!fanOpen) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setFanOpen(false); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [fanOpen]);
+  const pinHrefs = session.role === "admin" ? ["/admin", "/admin/vote-control", "/staff", "/staff/vote"] : ["/staff", "/staff/register", "/staff/vote", "/staff/summary"];
+  const pinned = pinHrefs.map((h) => items.find((i) => i.href === h)).filter((i): i is NavItem => !!i);
+  const menu = items.filter((i) => !pinHrefs.includes(i.href));
+  const inMenu = menu.some((m) => (m.href === "/staff" || m.href === "/admin" ? path === m.href : path.startsWith(m.href)));
+  const fan = fanLayout(menu.length);
   const active = (h: string) => (h === "/staff" || h === "/admin" ? path === h : path.startsWith(h));
   const logout = () => { clearSession("staff"); router.replace("/"); };
   const display = session.name || session.username;
@@ -98,8 +123,53 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
 
       <main className={styles.main}>{children}</main>
 
+      {fanOpen && <div className={styles.fanBack} onClick={() => setFanOpen(false)} aria-hidden="true" />}
+      {fanOpen && menu.length <= 6 && (
+        <div className={styles.fan} role="menu" aria-label="เมนูทั้งหมด">
+          {menu.map((n, i) => (
+            <Link key={n.href} href={n.href} role="menuitem" className={`${styles.fanItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
+              style={{ "--x": fan[i].x, "--y": fan[i].y, "--i": i } as React.CSSProperties}>
+              <span className={styles.fanCircle}><Icon name={n.icon} size={22} /></span>
+              <span className={styles.fanLbl}>{n.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+      {fanOpen && menu.length > 6 && (
+        <div className={styles.sheet} role="menu" aria-label="เมนูทั้งหมด">
+          {[["แอดมิน", menu.filter((n) => n.href.startsWith("/admin"))], ["งานหน้างาน", menu.filter((n) => !n.href.startsWith("/admin"))]].map(([title, list]) => (
+            (list as NavItem[]).length > 0 && (
+              <div key={title as string} className={styles.sheetSec}>
+                <div className={styles.sheetTitle}>{title as string}</div>
+                <div className={styles.sheetGrid}>
+                  {(list as NavItem[]).map((n, i) => (
+                    <Link key={n.href} href={n.href} role="menuitem" className={`${styles.fanItem} ${styles.sheetItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
+                      style={{ "--i": i } as React.CSSProperties}>
+                      <span className={styles.fanCircle}><Icon name={n.icon} size={22} /></span>
+                      <span className={styles.fanLbl}>{n.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
       <nav className={styles.tabs} aria-label="เมนูมือถือ">
-        {items.map((n) => (
+        {pinned.slice(0, 2).map((n) => (
+          <Link key={n.href} href={n.href} className={active(n.href) ? styles.on : ""}>
+            <Icon name={n.icon} size={22} />
+            <small>{n.label}</small>
+          </Link>
+        ))}
+        <div className={styles.fabSlot}>
+          <button type="button" className={`${styles.fab} ${fanOpen ? styles.fabOpen : ""}`} onClick={() => setFanOpen((v) => !v)} aria-expanded={fanOpen} aria-label={fanOpen ? "ปิดเมนู" : "เมนูทั้งหมด"}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            {inMenu && !fanOpen && <i className={styles.fabDot} />}
+          </button>
+          <small>เมนู</small>
+        </div>
+        {pinned.slice(2).map((n) => (
           <Link key={n.href} href={n.href} className={active(n.href) ? styles.on : ""}>
             <Icon name={n.icon} size={22} />
             <small>{n.label}</small>
