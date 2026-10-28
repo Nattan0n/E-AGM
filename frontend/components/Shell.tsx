@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, ReactNode, useEffect, useState } from "react";
+import { MobileDock, DockSlot } from "./MobileDock";
 import { clearSession, StaffSession } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -89,6 +90,14 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   const menu = items.filter((i) => !pinHrefs.includes(i.href));
   const inMenu = menu.some((m) => (m.href === "/staff" || m.href === "/admin" ? path === m.href : path.startsWith(m.href)));
   const fan = fanLayout(menu.length);
+  const MENU_KEY = "__menu";
+  const dockSlots: DockSlot[] = [
+    ...pinned.slice(0, 2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href })),
+    { key: MENU_KEY, label: "เมนู", icon: "menu" as const },
+    ...pinned.slice(2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href })),
+  ];
+  const pinnedActive = dockSlots.findIndex((d) => d.href && (d.href === "/staff" || d.href === "/admin" ? path === d.href : path.startsWith(d.href)));
+  const dockActive = fanOpen ? 2 : pinnedActive >= 0 ? pinnedActive : inMenu ? 2 : -1;
   const active = (h: string) => (h === "/staff" || h === "/admin" ? path === h : path.startsWith(h));
   const logout = () => { clearSession("staff"); router.replace("/"); };
   const display = session.name || session.username;
@@ -168,27 +177,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
           ))}
         </div>
       )}
-      <nav className={styles.tabs} aria-label="เมนูมือถือ">
-        {pinned.slice(0, 2).map((n) => (
-          <Link key={n.href} href={n.href} onClick={() => setFanOpen(false)} className={active(n.href) ? styles.on : ""}>
-            <Icon name={n.icon} size={22} />
-            <small>{n.label}</small>
-          </Link>
-        ))}
-        <div className={styles.fabSlot}>
-          <button type="button" className={`${styles.fab} ${fanOpen ? styles.fabOpen : ""}`} onClick={() => setFanOpen((v) => !v)} aria-expanded={fanOpen} aria-label={fanOpen ? "ปิดเมนู" : "เมนูทั้งหมด"}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            {inMenu && !fanOpen && <i className={styles.fabDot} />}
-          </button>
-          <small>เมนู</small>
-        </div>
-        {pinned.slice(2).map((n) => (
-          <Link key={n.href} href={n.href} onClick={() => setFanOpen(false)} className={active(n.href) ? styles.on : ""}>
-            <Icon name={n.icon} size={22} />
-            <small>{n.label}</small>
-          </Link>
-        ))}
-      </nav>
+      <MobileDock slots={dockSlots} active={dockActive} menuKey={MENU_KEY} open={fanOpen} onMenu={() => setFanOpen((v) => !v)} onNavigate={() => setFanOpen(false)} />
     </div>
   );
 }
