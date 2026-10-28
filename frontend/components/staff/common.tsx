@@ -2,6 +2,7 @@
 import { Icon } from "@/components/brand/Icon";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { api, errMsg, fmt, StaffSession } from "@/lib/api";
+import { MOCK } from "@/lib/mock";
 import { useApi, useStaffGuard } from "@/lib/hooks";
 import { Shell, STAFF_NAV } from "@/components/Shell";
 import type { HolderItem, Meeting } from "@/lib/types";
@@ -92,7 +93,7 @@ export function HolderPicker({ onPick, label = "ค้นหาผู้ถื�
   const term = q.trim();
   useEffect(() => {
     const id = ++seq.current;
-    if ([...term].length < 2) return;
+    if ([...term].length < 2 && !MOCK) return; // demo mode lists sample holders without typing
     const t = setTimeout(async () => {
       setBusy(true);
       try {
@@ -104,7 +105,7 @@ export function HolderPicker({ onPick, label = "ค้นหาผู้ถื�
     return () => clearTimeout(t);
   }, [term]);
   const shown = filter ? rows.filter(filter) : rows;
-  const active = [...term].length >= 2;
+  const active = [...term].length >= 2 || MOCK;
   return (
     <div>
       <label className={styles.lbl} htmlFor="hp-q">{label}</label>
@@ -114,6 +115,7 @@ export function HolderPicker({ onPick, label = "ค้นหาผู้ถื�
       </div>
       {active && (
         <div style={{ marginTop: 10 }} aria-live="polite">
+          {MOCK && [...term].length < 2 && <p className={styles.muted}>รายชื่อตัวอย่าง (โหมดทดลอง) — เลือกได้เลย หรือพิมพ์ค้นหา</p>}
           {busy && <p className={styles.muted}>กำลังค้นหา...</p>}
           {err && <p className={styles.errText}>{err}</p>}
           {!busy && !err && shown.length === 0 && <p className={styles.muted}>ไม่พบข้อมูล</p>}
