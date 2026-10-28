@@ -49,7 +49,11 @@ function seed(): State {
     if (i < 6) votes["3"][id] = { ...v };
   });
   return {
-    meeting, agendas, regs, late: {}, novote: [{ id: 1, term_id: "3", account_id: "1020", name: hold("1020")!.name, shares: hold("1020")!.shares }],
+    meeting, agendas, regs, late: {}, novote: [
+      { id: 1, term_id: "3", account_id: "1002", name: hold("1002")!.name, shares: hold("1002")!.shares },
+      { id: 2, term_id: "4", account_id: "1002", name: hold("1002")!.name, shares: hold("1002")!.shares },
+      { id: 3, term_id: "5", account_id: "1004", name: hold("1004")!.name, shares: hold("1004")!.shares },
+    ],
     groups: [{ id: 1, name: "กองทุนตัวอย่าง (กลุ่ม)", members: [{ account_id: "1016", name: hold("1016")!.name, shares: 30000 }, { account_id: "1017", name: hold("1017")!.name, shares: 20000 }] }],
     users: [
       { id: 1, username: "admin", fullname: "ผู้ดูแลระบบ (ตัวอย่าง)", dept: "ITD", role: "admin", active: true },
@@ -118,7 +122,7 @@ function voteRows(acc: string): VoteRow[] {
   const s = S();
   return s.agendas.map((a) => {
     const v = s.votes[a.term_id]?.[acc];
-    return { term_id: a.term_id, name: a.name, status: a.status, voted: !!v, choice: v?.choice ?? "", shares: s.regs[acc]?.shares ?? hold(acc)?.shares ?? 0, agree: v?.agree ?? 0, disagree: v?.disagree ?? 0, abstain: v?.abstain ?? 0, spoiled: v?.spoiled ?? 0 };
+    return { term_id: a.term_id, name: a.name, status: a.status, voted: !!v, choice: v?.choice ?? "", shares: s.novote.some((n) => n.term_id === a.term_id && n.account_id === acc) ? 0 : (s.regs[acc]?.shares ?? hold(acc)?.shares ?? 0), agree: v?.agree ?? 0, disagree: v?.disagree ?? 0, abstain: v?.abstain ?? 0, spoiled: v?.spoiled ?? 0 };
   });
 }
 
@@ -233,6 +237,7 @@ export async function mockApi(path: string, method: string, body: Record<string,
       const acc = String(b.account_id), term = String(b.term_id);
       const h = hold(acc);
       if (!s.regs[acc] && !h) err(404, "ไม่พบผู้ถือหุ้น");
+      if (s.novote.some((n) => n.term_id === term && n.account_id === acc)) err(403, "ผู้ถือหุ้นรายนี้ไม่มีสิทธิ์ออกเสียงในวาระนี้");
       const sh = s.regs[acc]?.shares ?? h?.shares ?? 0;
       let v: Vote;
       if (b.split) { const sp = b.split as Partial<Record<Choice, number>>; v = { choice: "split", agree: sp.agree ?? 0, disagree: sp.disagree ?? 0, abstain: sp.abstain ?? 0, spoiled: sp.spoiled ?? 0 }; }
