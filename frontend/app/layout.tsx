@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Prompt } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { GradientBg } from "@/components/brand/GradientBg";
 import { Ready } from "@/components/brand/Ready";
@@ -24,9 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: "try{if(localStorage.getItem('eagm_sidebar_collapsed')==='1')document.documentElement.dataset.sidebar='collapsed'}catch(e){}setTimeout(function(){document.documentElement.dataset.ready='1'},5000)" }} />
       </head>
       <body>
-        <GradientBg />
+        <Suspense fallback={null}><GradientBg /></Suspense>
         <div id="app-root">{children}</div>
-        <Ready />
+        <Suspense fallback={null}><Ready /></Suspense>
         <noscript><style>{"#app-root{opacity:1!important}"}</style></noscript>
       </body>
     </html>
