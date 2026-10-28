@@ -64,6 +64,12 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   // Admin can do everything staff can: show the on-site (staff) menu under the admin one.
   const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))] : nav;
   const [fanOpen, setFanOpen] = useState(false);
+  const [fanMounted, setFanMounted] = useState(false); // stays mounted briefly after closing so the collapse animation can play
+  useEffect(() => {
+    if (fanOpen) { setFanMounted(true); return; }
+    const t = setTimeout(() => setFanMounted(false), 240);
+    return () => clearTimeout(t);
+  }, [fanOpen]);
   // Next keeps previous pages mounted (hidden) with their state: close the menu on route change and whenever this page is hidden.
   useEffect(() => { setFanOpen(false); return () => setFanOpen(false); }, [path]);
   useEffect(() => {
@@ -130,9 +136,9 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
 
       <main className={styles.main}>{children}</main>
 
-      {fanOpen && <div className={styles.fanBack} onClick={() => setFanOpen(false)} aria-hidden="true" />}
-      {fanOpen && menu.length <= 6 && (
-        <div className={styles.fan} role="menu" aria-label="เมนูทั้งหมด">
+      {fanMounted && <div className={`${styles.fanBack} ${fanOpen ? "" : styles.closing}`} onClick={() => setFanOpen(false)} aria-hidden="true" />}
+      {fanMounted && menu.length <= 6 && (
+        <div className={`${styles.fan} ${fanOpen ? "" : styles.closing}`} role="menu" aria-label="เมนูทั้งหมด">
           {menu.map((n, i) => (
             <Link key={n.href} href={n.href} onClick={() => setFanOpen(false)} role="menuitem" className={`${styles.fanItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
               style={{ "--x": fan[i].x, "--y": fan[i].y, "--i": i } as React.CSSProperties}>
@@ -142,8 +148,8 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
           ))}
         </div>
       )}
-      {fanOpen && menu.length > 6 && (
-        <div className={styles.sheet} role="menu" aria-label="เมนูทั้งหมด">
+      {fanMounted && menu.length > 6 && (
+        <div className={`${styles.sheet} ${fanOpen ? "" : styles.closing}`} role="menu" aria-label="เมนูทั้งหมด">
           {[["แอดมิน", menu.filter((n) => n.href.startsWith("/admin"))], ["งานหน้างาน", menu.filter((n) => !n.href.startsWith("/admin"))]].map(([title, list]) => (
             (list as NavItem[]).length > 0 && (
               <div key={title as string} className={styles.sheetSec}>
