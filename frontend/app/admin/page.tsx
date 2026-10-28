@@ -85,7 +85,7 @@ function Body() {
             </div>
 
             {!desktop && (
-              <div className="hero-card">
+              <div className="hero-card lava">
                 <div className="hc-label">สถานะองค์ประชุม</div>
                 <div className="hc-big">{st.quorum_pct.toFixed(2)}%</div>
                 <p className="hc-sub">{fmt(st.onsite_shares + st.online_shares)} / {fmt(st.total_shares)} หุ้น · ขั้นต่ำ {st.quorum_required_pct}%</p>

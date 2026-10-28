@@ -58,7 +58,7 @@ function Body({ ag, desktop }: { ag: AgState; desktop: boolean }) {
   };
 
   const hero = me && (
-    <section className={s.hero}>
+    <section className={`${s.hero} lava`}>
       <div className={s.heroname}>{me.name}</div>
       <div className={s.heroid}>เลขทะเบียน: {me.account_id}</div>
       <div className={s.herostats}>

@@ -50,7 +50,7 @@ export function StaffPage({ title, sub, children }: { title: string; sub?: strin
 /** Summary bar on phones / KPI cards on desktop. */
 export function Metrics({ items, cols }: { items: { v: ReactNode; l: string; c?: "cBlue" | "cGreen" | "cCyan" | "cAmber"; n?: ReactNode }[]; cols?: "two" | "three" }) {
   return (
-    <div className={`${styles.metrics} ${cols ? styles[cols] : ""}`}>
+    <div className={`${styles.metrics} ${cols ? styles[cols] : ""} lava-m`}>
       {items.map((m, i) => (
         <div key={i} className={styles.metric}>
           <div className={`${styles.mv} ${m.c ? styles[m.c] : ""}`}>{m.v}</div>

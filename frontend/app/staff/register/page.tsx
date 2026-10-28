@@ -170,7 +170,7 @@ function Group({ canWrite, toast }: Ctx) {
 
   return (
     <>
-      <div className={styles.heroBlue}>
+      <div className={`${styles.heroBlue} lava`}>
         <div><div className={styles.mv}>{members.length}</div><div className={styles.ml}>สมาชิกในกลุ่ม</div></div>
         <div><div className={styles.mv}>{fmt(total)}</div><div className={styles.ml}>หุ้นรวม</div></div>
         <div><div className={styles.mv}>{pct(total, stats?.total_shares)}</div><div className={styles.ml}>% คะแนนรวม</div></div>

@@ -56,7 +56,7 @@ function SummaryView() {
         <div className={styles.kpiTop} style={{ borderTopColor: "#f59e0b" }}><div className={`${styles.kv} ${styles.tcAmber}`}>{fmt(stats.late_count)}</div><div className={styles.kl}>ผู้มาสาย</div><div className={styles.kn} style={{ color: "var(--ink-muted)" }}>{fmt(stats.late_shares)} หุ้น</div></div>
       </div>
 
-      <div className={`${styles.card} ${styles.qHero}`}>
+      <div className={`${styles.card} ${styles.qHero} lava`}>
         <div className={styles.row} style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "nowrap" }}>
           <div>
             <div style={{ fontWeight: 700 }}>องค์ประชุม (Quorum)</div>
