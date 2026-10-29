@@ -84,7 +84,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
   return (
     <nav ref={navRef} className={styles.dock} aria-label="เมนูมือถือ">
       <svg className={styles.dockBg} width={w || "100%"} height={TOP + BAR_H} aria-hidden="true"><path ref={pathRef} fill="#fff" d={barPath(w || 390, null)} /></svg>
-      <div ref={circleRef} className={`${styles.dockCircle} ${open ? styles.dockCircleOpen : ""}`} style={{ top: TOP + DEPTH - CIRCLE - 5, width: CIRCLE, height: CIRCLE, opacity: 0 }}>
+      <div ref={circleRef} className={`${styles.dockCircle} ${open ? styles.dockCircleOpen : ""}`} style={{ top: TOP + DEPTH - CIRCLE - 13, width: CIRCLE, height: CIRCLE, opacity: 0 }}>
         {circleIcon && (
           <span key={`${active}-${open}`} className={styles.dockCircleIn}>
             {open ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg> : <Icon name={circleIcon} size={24} />}
