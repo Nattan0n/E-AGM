@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, ReactNode, useEffect, useState } from "react";
+import { Fragment, ReactNode, useEffect, useRef, useState } from "react";
 import { MobileDock, DockSlot } from "./MobileDock";
 import { clearSession, StaffSession } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -39,6 +39,8 @@ let meetingCache: Meeting | null = null;
 
 const ROLE_LABEL = { admin: "Administrator", staff: "เจ้าหน้าที่ทะเบียน", viewer: "ผู้ชมผลการประชุม" } as const;
 
+const BOX_SEL = ".adm-kpi, .adm-card, .adm-strip, .hero-card, .adm-vc-now, .adm-list, .adm-banner";
+
 /** Positions (px from the centre button, y = upwards) for n circular menu items fanned out in one or two arcs. */
 function fanLayout(n: number): { x: number; y: number }[] {
   const ring = (count: number, r: number, from: number, to: number) =>
@@ -64,6 +66,32 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   const meeting = fetched ?? meetingCache;
   // Admin can do everything staff can: show the on-site (staff) menu under the admin one.
   const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))] : nav;
+  // One entrance sequence for every admin page: each top-level box gets its place in document order (--ent), whatever wrapper it sits in.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    let n = 0, last = 0;
+    const tag = () => {
+      const now = performance.now();
+      if (now - last > 700) n = 0; // boxes that arrive together (or just after one another, e.g. once data loads) continue one sequence
+      main.querySelectorAll<HTMLElement>(BOX_SEL).forEach((el) => {
+        if (el.dataset.box !== undefined) return;
+        const outer = el.parentElement?.closest(BOX_SEL);
+        if (el.closest(".adm-modal") || (outer && main.contains(outer))) { el.dataset.box = "skip"; return; }
+        el.dataset.box = "1";
+        el.style.setProperty("--ent", String(Math.min(n++, 9)));
+        last = now;
+        let p = el.parentElement;
+        while (p && p.parentElement !== main) p = p.parentElement;
+        if (p && p !== el) p.dataset.wrap = "1"; // the wrapper must not fade on its own, its boxes do
+      });
+    };
+    tag();
+    const mo = new MutationObserver(tag);
+    mo.observe(main, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, []);
   const [fanOpen, setFanOpen] = useState(false);
   const [fanMounted, setFanMounted] = useState(false); // stays mounted briefly after closing so the collapse animation can play
   useEffect(() => {
@@ -143,7 +171,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
         <button className={styles.logoutM} onClick={logout}>ออก</button>
       </header>
 
-      <main className={styles.main}>{children}</main>
+      <main ref={mainRef} className={styles.main}>{children}</main>
 
       {(fanOpen || fanMounted) && <div className={`${styles.fanBack} ${fanOpen ? "" : styles.closing}`} onClick={() => setFanOpen(false)} aria-hidden="true" />}
       {(fanOpen || fanMounted) && menu.length <= 6 && (
