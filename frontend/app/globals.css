@@ -397,7 +397,7 @@ body { -webkit-font-smoothing: antialiased; }
 @keyframes eagm-shimmer { to { background-position: -200% 0; } }
 .route-enter { animation: eagm-fade .35s ease-out both; }
 /* result / progress bars fill from the left */
-.bar > span { transform-origin: left center; animation: eagm-grow .5s cubic-bezier(.2, .8, .2, 1) .05s backwards; }
+.bar > span { transform-origin: left center; animation: eagm-grow 1s cubic-bezier(.22, .61, .36, 1) .45s backwards; }
 /* button feedback */
 .btn, .btn-primary { transition: transform .15s, filter .15s, box-shadow .15s; }
 .btn:active:not(:disabled) { transform: scale(.97); }
@@ -475,18 +475,17 @@ html:not([data-ready]) #app-root { opacity: 0; }
   .lava.lava::before, .lava.lava::after, .lava-m.lava-m::before, .lava-m.lava-m::after, .adm-vc-now::before, .adm-vc-now::after, .adm-head::before, .adm-head::after { animation: none; }
 }
 
-/* ===== staggered entrance: cards and rows rise in one after another (kept under ~0.5s, transform/opacity only) ===== */
-@keyframes rowIn { from { opacity: 0; transform: translateY(10px); } }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > * { animation: rowIn .26s cubic-bezier(.2, .8, .2, 1) backwards; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(1) { animation-delay: 0.02s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(2) { animation-delay: 0.04s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(3) { animation-delay: 0.06s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(4) { animation-delay: 0.08s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(5) { animation-delay: 0.10s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(6) { animation-delay: 0.10s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(7) { animation-delay: 0.10s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(8) { animation-delay: 0.10s; }
-:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(n+9) { animation-delay: .1s; }
+/* ===== staggered entrance: boxes drift in one after another, slow and soft (opacity/transform only, delay capped so long lists stay snappy) ===== */
+@keyframes rowIn { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > * { animation: rowIn .7s cubic-bezier(.22, .61, .36, 1) backwards; animation-delay: .75s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(1) { animation-delay: 0.20s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(2) { animation-delay: 0.32s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(3) { animation-delay: 0.44s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(4) { animation-delay: 0.56s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(5) { animation-delay: 0.68s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(6) { animation-delay: 0.80s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(7) { animation-delay: 0.92s; }
+:is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > :nth-child(8) { animation-delay: 1.04s; }
 @media (prefers-reduced-motion: reduce) { :is(.adm-tlist, .adm-list, .adm-feed, .adm-kpis, .adm-qas, .adm-tiles, .adm-vc-open, .adm-hist-list) > * { animation: none; } }
 
 /* phones: ~60 frosted cards re-blurring the animated backdrop every frame is the heaviest thing on screen,

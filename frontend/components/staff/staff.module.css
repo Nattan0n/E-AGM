@@ -322,10 +322,15 @@ button.item:hover { background: #f8fafc; }
 .qHero .qFacts > div { color: rgba(255,255,255,.8); }
 .qHero .tcGreen { color: #bbf7d0; } .qHero .tcAmber { color: #fde68a; }
 
-/* staggered entrance for staff pages (short: the page must feel instant) */
-@keyframes stackIn { from { opacity: 0; transform: translateY(8px); } }
-.stack > *, .list > * { animation: stackIn .24s cubic-bezier(.2, .8, .2, 1) backwards; }
-.stack > :nth-child(2), .list > :nth-child(2) { animation-delay: .02s; } .stack > :nth-child(3), .list > :nth-child(3) { animation-delay: .04s; }
-.stack > :nth-child(4), .list > :nth-child(4) { animation-delay: .06s; } .stack > :nth-child(5), .list > :nth-child(5) { animation-delay: .08s; }
-.stack > :nth-child(n+6), .list > :nth-child(n+6) { animation-delay: .1s; }
+/* staggered entrance for staff pages: boxes drift in one by one (delay capped for long lists) */
+@keyframes stackIn { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+.stack > *, .list > * { animation: stackIn .7s cubic-bezier(.22, .61, .36, 1) backwards; animation-delay: .85s; }
+.stack > :nth-child(1), .list > :nth-child(1) { animation-delay: 0.10s; }
+.stack > :nth-child(2), .list > :nth-child(2) { animation-delay: 0.23s; }
+.stack > :nth-child(3), .list > :nth-child(3) { animation-delay: 0.36s; }
+.stack > :nth-child(4), .list > :nth-child(4) { animation-delay: 0.49s; }
+.stack > :nth-child(5), .list > :nth-child(5) { animation-delay: 0.62s; }
+.stack > :nth-child(6), .list > :nth-child(6) { animation-delay: 0.75s; }
+.stack > :nth-child(7), .list > :nth-child(7) { animation-delay: 0.88s; }
+.stack > :nth-child(8), .list > :nth-child(8) { animation-delay: 1.01s; }
 @media (prefers-reduced-motion: reduce) { .stack > *, .list > * { animation: none; } }
