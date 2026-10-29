@@ -20,6 +20,23 @@ export function GradientBg() {
   const variant = HERO_ALWAYS.includes(path) ? "dark" : HERO_DESKTOP.includes(path) ? "darkDesktop" : "light";
   const inter = useRef<HTMLDivElement>(null);
 
+  // The blurred, blended backdrop is re-painted every frame while it moves. Freeze it while the user is tapping around
+  // (menu open/close, page switches) so those transitions get the whole frame budget; it resumes right after.
+  useEffect(() => {
+    const root = document.documentElement;
+    let t = 0;
+    const hold = () => { root.dataset.busy = "1"; clearTimeout(t); t = window.setTimeout(() => { delete root.dataset.busy; }, 1000); };
+    const down = (e: Event) => { if ((e.target as Element | null)?.closest?.("a, button, [role=menuitem]")) hold(); };
+    document.addEventListener("pointerdown", down, { capture: true, passive: true });
+    return () => { document.removeEventListener("pointerdown", down, true); clearTimeout(t); delete root.dataset.busy; };
+  }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.busy = "1";
+    const t = window.setTimeout(() => { delete root.dataset.busy; }, 1100);
+    return () => clearTimeout(t);
+  }, [path]);
+
   useEffect(() => {
     const el = inter.current;
     const fine = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 1024px)").matches;
