@@ -11,8 +11,12 @@ const BAR_H = 65;
 const NW = 70;       // half width of the notch
 const DEPTH = 40;    // how far the notch cuts into the bar
 const CIRCLE = 58;
-const PAD = 25;      // side inset of the slots
-const EDGE = 4;      // flat bar kept between the screen edge and the notch of an edge tab
+const PAD = 25;      // minimum side inset of the slots
+const PAD_MAX = 40;
+const EDGE = 0;      // flat bar kept between the screen edge and the notch of an edge tab
+
+// Push the slots in just enough that an edge tab's notch is as wide as every other one (only very narrow screens still clamp it).
+const padFor = (w: number, n: number) => Math.min(PAD_MAX, Math.max(PAD, (NW + EDGE - w / (2 * n)) / (1 - 1 / n)));
 
 // Each page mounts its own dock, so remember where the notch ended up (as a fraction of the width) and glide from there on the next page.
 let lastRatio: number | null = null;
@@ -56,7 +60,8 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
 
   useLayoutEffect(() => {
     if (!w) return;
-    const target = active < 0 ? null : PAD + ((active + 0.5) * (w - 2 * PAD)) / slots.length;
+    const pad = padFor(w, slots.length);
+    const target = active < 0 ? null : pad + ((active + 0.5) * (w - 2 * pad)) / slots.length;
     const draw = (x: number | null) => {
       lastRatio = x === null ? null : x / w;
       pathRef.current?.setAttribute("d", barPath(w, x));
@@ -98,7 +103,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
           </span>
         )}
       </div>
-      <div className={styles.dockRow} style={{ height: BAR_H, marginTop: TOP, paddingInline: PAD }}>
+      <div className={styles.dockRow} style={{ height: BAR_H, marginTop: TOP, paddingInline: padFor(w || 390, slots.length) }}>
         {slots.map((s, i) => {
           const on = i === active;
           const inner = (
