@@ -168,12 +168,18 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
           {meeting?.date && <small>{meeting.date}</small>}
         </div>
         <span className={styles.pageTitle}>{title}</span>
-        <button className={styles.logoutM} onClick={logout}>ออก</button>
       </header>
 
       <main ref={mainRef} className={styles.main}>{children}</main>
 
       {(fanOpen || fanMounted) && <div className={`${styles.fanBack} ${fanOpen ? "" : styles.closing}`} onClick={() => setFanOpen(false)} aria-hidden="true" />}
+      {(fanOpen || fanMounted) && (
+        <div className={`${styles.acct} ${fanOpen ? "" : styles.closing}`}>
+          <span className={styles.acctAvatar}>{initial}</span>
+          <div className={styles.acctText}><b>{display}</b><small>{ROLE_LABEL[session.role]}</small></div>
+          <button type="button" className={styles.acctOut} onClick={logout}><Icon name="power" size={16} />ออกจากระบบ</button>
+        </div>
+      )}
       {(fanOpen || fanMounted) && menu.length <= 6 && (
         <div className={`${styles.fan} ${fanOpen ? "" : styles.closing}`} role="menu" aria-label="เมนูทั้งหมด">
           {menu.map((n, i) => (

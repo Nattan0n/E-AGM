@@ -16,6 +16,7 @@ const EDGE = 4;      // flat bar kept between the screen edge and the notch of a
 
 // Each page mounts its own dock, so remember where the notch ended up (as a fraction of the width) and glide from there on the next page.
 let lastRatio: number | null = null;
+let lastCircleKey = ""; // the circle icon only pops when the slot / open state really changed, not on every page mount
 
 const easeOutBack = (t: number) => { const c1 = 0.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
@@ -81,6 +82,9 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
     return () => cancelAnimationFrame(raf.current);
   }, [active, w, slots.length]);
 
+  const circleKey = `${active}-${open}`;
+  const popIcon = circleKey !== lastCircleKey;
+  useEffect(() => { lastCircleKey = circleKey; }, [circleKey]);
   const activeSlot = active >= 0 ? slots[active] : null;
   const circleIcon: IconName | null = activeSlot ? (activeSlot.key === menuKey ? (activeLabelIcon ?? activeSlot.icon) : activeSlot.icon) : null;
 
@@ -89,7 +93,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
       <svg className={styles.dockBg} width={w || "100%"} height={TOP + BAR_H} aria-hidden="true"><path ref={pathRef} fill="#fff" d={barPath(w || 390, null)} /></svg>
       <div ref={circleRef} className={`${styles.dockCircle} ${open ? styles.dockCircleOpen : ""}`} style={{ top: TOP + DEPTH - CIRCLE - 9, width: CIRCLE, height: CIRCLE, opacity: 0 }}>
         {circleIcon && (
-          <span key={`${active}-${open}`} className={styles.dockCircleIn}>
+          <span key={circleKey} className={`${styles.dockCircleIn} ${popIcon ? "" : styles.dockCircleStill}`}>
             {open ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg> : <Icon name={circleIcon} size={24} />}
           </span>
         )}
