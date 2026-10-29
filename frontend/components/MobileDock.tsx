@@ -8,10 +8,10 @@ export interface DockSlot { key: string; label: string; icon: IconName; href?: s
 
 const TOP = 44;      // room above the bar for the floating circle
 const BAR_H = 68;
-const NW = 54;       // half width of the notch
-const DEPTH = 44;    // how far the notch cuts into the bar
+const NW = 50;       // half width of the notch
+const DEPTH = 40;    // how far the notch cuts into the bar
 const CIRCLE = 58;
-const PAD = 14;      // side inset of the slots, so the notch of an edge tab has room to curve
+const PAD = 18;      // side inset of the slots, so the notch of an edge tab has room to curve
 
 // Each page mounts its own dock, so remember where the notch ended up (as a fraction of the width) and glide from there on the next page.
 let lastRatio: number | null = null;
@@ -22,7 +22,7 @@ function barPath(w: number, cx: number | null): string {
   const y = TOP;
   if (cx === null) return `M0,${y} L${w},${y} L${w},${y + BAR_H} L0,${y + BAR_H} Z`;
   const a = Math.max(0, cx - NW), b = Math.min(w, cx + NW);
-  return `M0,${y} L${a},${y} C${a + NW * 0.5},${y} ${cx - NW * 0.62},${y + DEPTH} ${cx},${y + DEPTH} C${cx + NW * 0.62},${y + DEPTH} ${b - NW * 0.5},${y} ${b},${y} L${w},${y} L${w},${y + BAR_H} L0,${y + BAR_H} Z`;
+  return `M0,${y} L${a},${y} C${a + NW * 0.62},${y} ${cx - NW * 0.5},${y + DEPTH} ${cx},${y + DEPTH} C${cx + NW * 0.5},${y + DEPTH} ${b - NW * 0.62},${y} ${b},${y} L${w},${y} L${w},${y + BAR_H} L0,${y + BAR_H} Z`;
 }
 
 /**
@@ -84,7 +84,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
   return (
     <nav ref={navRef} className={styles.dock} aria-label="เมนูมือถือ">
       <svg className={styles.dockBg} width={w || "100%"} height={TOP + BAR_H} aria-hidden="true"><path ref={pathRef} fill="#fff" d={barPath(w || 390, null)} /></svg>
-      <div ref={circleRef} className={`${styles.dockCircle} ${open ? styles.dockCircleOpen : ""}`} style={{ top: TOP + DEPTH - CIRCLE - 13, width: CIRCLE, height: CIRCLE, opacity: 0 }}>
+      <div ref={circleRef} className={`${styles.dockCircle} ${open ? styles.dockCircleOpen : ""}`} style={{ top: TOP + DEPTH - CIRCLE - 9, width: CIRCLE, height: CIRCLE, opacity: 0 }}>
         {circleIcon && (
           <span key={`${active}-${open}`} className={styles.dockCircleIn}>
             {open ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg> : <Icon name={circleIcon} size={24} />}

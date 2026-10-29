@@ -130,7 +130,7 @@
 .dockIcon { display: grid; place-items: center; transition: transform .15s; }
 .dockOn { color: var(--primary-dark); }
 .dockLblOn { font-weight: 700; transform: translateY(6px); color: var(--primary-dark); }
-.dockCircle { position: absolute; left: 0; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #06b6d4); color: #fff; display: grid; place-items: center; box-shadow: 0 10px 22px rgba(37, 99, 235, .5); border: 4px solid #fff; box-sizing: border-box; pointer-events: none; will-change: transform; }
+.dockCircle { position: absolute; left: 0; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #06b6d4); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 14px rgba(37, 99, 235, .32); border: 4px solid #fff; box-sizing: border-box; pointer-events: none; will-change: transform; }
 .dockCircleOpen { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
 .dockCircleIn { display: grid; place-items: center; animation: dockPop .45s cubic-bezier(.22, 1.1, .36, 1); }
 .dockSafe { height: env(safe-area-inset-bottom); background: #fff; }
