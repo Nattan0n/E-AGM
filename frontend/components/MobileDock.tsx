@@ -7,11 +7,11 @@ import styles from "./Shell.module.css";
 export interface DockSlot { key: string; label: string; icon: IconName; href?: string }
 
 const TOP = 44;      // room above the bar for the floating circle
-const BAR_H = 68;
-const NW = 50;       // half width of the notch
+const BAR_H = 65;
+const NW = 70;       // half width of the notch
 const DEPTH = 40;    // how far the notch cuts into the bar
 const CIRCLE = 58;
-const PAD = 18;      // side inset of the slots, so the notch of an edge tab has room to curve
+const PAD = 25;      // side inset of the slots, so the notch of an edge tab has room to curve
 
 // Each page mounts its own dock, so remember where the notch ended up (as a fraction of the width) and glide from there on the next page.
 let lastRatio: number | null = null;
