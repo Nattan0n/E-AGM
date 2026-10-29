@@ -16,7 +16,7 @@ const PAD = 14;      // side inset of the slots, so the notch of an edge tab has
 // Each page mounts its own dock, so remember where the notch ended up (as a fraction of the width) and glide from there on the next page.
 let lastRatio: number | null = null;
 
-const easeOutBack = (t: number) => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const easeOutBack = (t: number) => { const c1 = 0.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
 function barPath(w: number, cx: number | null): string {
   const y = TOP;
@@ -67,7 +67,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
     if (from === null || target === null) { cur.current = target; draw(target); return; }
     const t0 = performance.now();
     const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / 460);
+      const p = Math.min(1, (now - t0) / 520);
       const x = from + (target - from) * easeOutBack(p);
       cur.current = x;
       draw(x);

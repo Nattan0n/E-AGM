@@ -68,7 +68,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   const [fanMounted, setFanMounted] = useState(false); // stays mounted briefly after closing so the collapse animation can play
   useEffect(() => {
     if (fanOpen) { setFanMounted(true); return; }
-    const t = setTimeout(() => setFanMounted(false), 240);
+    const t = setTimeout(() => setFanMounted(false), 320);
     return () => clearTimeout(t);
   }, [fanOpen]);
   // Next keeps previous pages mounted (hidden) with their state: close the menu on route change and whenever this page is hidden.
@@ -145,8 +145,8 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
 
       <main className={styles.main}>{children}</main>
 
-      {fanMounted && <div className={`${styles.fanBack} ${fanOpen ? "" : styles.closing}`} onClick={() => setFanOpen(false)} aria-hidden="true" />}
-      {fanMounted && menu.length <= 6 && (
+      {(fanOpen || fanMounted) && <div className={`${styles.fanBack} ${fanOpen ? "" : styles.closing}`} onClick={() => setFanOpen(false)} aria-hidden="true" />}
+      {(fanOpen || fanMounted) && menu.length <= 6 && (
         <div className={`${styles.fan} ${fanOpen ? "" : styles.closing}`} role="menu" aria-label="เมนูทั้งหมด">
           {menu.map((n, i) => (
             <Link key={n.href} href={n.href} onClick={() => setFanOpen(false)} role="menuitem" className={`${styles.fanItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
@@ -157,7 +157,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
           ))}
         </div>
       )}
-      {fanMounted && menu.length > 6 && (
+      {(fanOpen || fanMounted) && menu.length > 6 && (
         <div className={`${styles.sheet} ${fanOpen ? "" : styles.closing}`} role="menu" aria-label="เมนูทั้งหมด">
           {[["แอดมิน", menu.filter((n) => n.href.startsWith("/admin"))], ["งานหน้างาน", menu.filter((n) => !n.href.startsWith("/admin"))]].map(([title, list]) => (
             (list as NavItem[]).length > 0 && (
