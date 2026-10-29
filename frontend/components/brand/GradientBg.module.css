@@ -44,9 +44,7 @@
   }
 }
 
-/* the radial blobs already fade to transparent, so phones skip the full-screen blur (expensive to repaint every frame) */
-.container { width: 100%; height: 100%; }
-@media (min-width: 1024px) { .container { filter: blur(40px); } }
+.container { width: 100%; height: 100%; filter: blur(40px); }
 @media (min-width: 1024px) and (hover: hover) { .container { filter: url(#eagm-goo) blur(40px); } }
 
 .g1, .g2, .g3, .g4, .g5, .interactive { position: absolute; mix-blend-mode: var(--blending); will-change: transform; }
