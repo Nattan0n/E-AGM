@@ -8,7 +8,7 @@ import type { Agenda, Choice, HolderItem, Meeting, Summary, VoteRow } from "@/li
 import { Ctx, fetchHolder, HolderCard, HolderPicker, StaffPage, StModal, styles } from "@/components/staff/common";
 
 export default function VotePage() {
-  return <StaffPage title="ลงคะแนนแทน (Onsite)" sub="บันทึกการลงคะแนนเสียงให้ผู้ถือหุ้นที่ไม่สะดวกใช้ระบบด้วยตนเอง">{(c) => <Suspense fallback={null}><Vote {...c} /></Suspense>}</StaffPage>;
+  return <StaffPage title="ลงคะแนนแทน" sub="บันทึกการลงคะแนนเสียงให้ผู้ถือหุ้นที่ไม่สะดวกใช้ระบบด้วยตนเอง">{(c) => <Suspense fallback={null}><Vote {...c} /></Suspense>}</StaffPage>;
 }
 
 const CHOICES: { c: Choice; cls: string; icon: IconName }[] = [
@@ -112,11 +112,11 @@ function Vote({ canWrite, toast }: Ctx) {
         <div className={`${styles.card} ${styles.vArea2}`}>
           <div className={styles.cardTitle}>{holder ? "ผู้ถือหุ้นที่เลือก" : "ค้นหาผู้ถือหุ้น"}</div>
           {!holder ? (
-            <HolderPicker label="ผู้ถือหุ้นที่ลงทะเบียน Onsite" filter={(h) => h.status === "onsite"} actionLabel="เลือก" onPick={(h) => { setHolder(h); setChoice(null); }} />
+            <HolderPicker label="ผู้ถือหุ้นที่ลงทะเบียนเข้าร่วมแล้ว" filter={(h) => h.status === "onsite"} actionLabel="เลือก" onPick={(h) => { setHolder(h); setChoice(null); }} />
           ) : (
             <HolderCard h={holder}><button className={`${styles.btn} ${styles.sm}`} onClick={() => { setHolder(null); setChoice(null); }}>เปลี่ยน</button></HolderCard>
           )}
-          <p className={styles.muted} style={{ marginTop: 10 }}>เฉพาะผู้ลงทะเบียน Onsite เท่านั้นที่ลงคะแนนแทนได้</p>
+          <p className={styles.muted} style={{ marginTop: 10 }}>ลงคะแนนแทนได้เฉพาะผู้ถือหุ้นที่เจ้าหน้าที่ลงทะเบียนให้ที่หน้างาน (ผู้ที่ลงทะเบียนออนไลน์ลงคะแนนเองผ่านระบบ)</p>
         </div>
 
         {/* 3: voting */}

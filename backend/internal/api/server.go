@@ -86,6 +86,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	ad.POST("/users", s.createUser)
 	ad.PUT("/users/:id", s.updateUser)
 	ad.GET("/online-registrations", s.listOnlineRegs)
+	ad.GET("/attendees", s.listAttendees)
 	ad.GET("/audit", s.listAudit)
 	ad.GET("/meetings", s.listMeetings)
 	ad.GET("/meetings/:year/summary", s.summary)

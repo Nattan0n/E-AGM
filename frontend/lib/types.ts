@@ -32,6 +32,7 @@ export interface VoteRow {
 export interface LateRow { account_id: string; name: string; shares: number; arrived_at: string; term_id: string }
 export interface NovoteRow { id: number; term_id: string; account_id: string; name: string; shares: number }
 export interface UserRow { id: number; username: string; fullname: string; dept: string; role: Role; active: boolean }
+export interface AttendeeRow { key: string; channel: "onsite" | "online"; account_id: string; name: string; shares: number; phone: string; email: string; status: string; reg_type: "person" | "proxy" | "group"; otp_verified: boolean; ip: string; vote_mode: "self" | "staff"; registered_at: string }
 export interface OnlineRegRow { id: number; account_id: string; name: string; shares: number; phone: string; email: string; status: string; vote_mode: "self" | "staff"; otp_verified: boolean; ip: string; registered_at: string }
 export interface AuditRow { id: number; acc_id: string; action: string; detail: string; ip: string; created_at: string }
 export interface OnlineAgenda { term_id: string; name: string; status: AgendaStatus; vote_type: VoteType; novote: boolean; choice: Choice | "" }

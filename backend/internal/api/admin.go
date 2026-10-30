@@ -143,6 +143,60 @@ func (s *Server) listOnlineRegs(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
+// AttendeeRow is one registration from either channel, so admins see everyone in one list.
+type AttendeeRow struct {
+	Key          string `json:"key"`
+	Channel      string `json:"channel"` // onsite | online
+	AccountID    string `json:"account_id"`
+	Name         string `json:"name"`
+	Shares       int    `json:"shares"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email"`
+	Status       string `json:"status"` // onsite: registered; online: pending|verified|voted|cancelled
+	RegType      string `json:"reg_type"`
+	OTPVerified  bool   `json:"otp_verified"`
+	IP           string `json:"ip"`
+	VoteMode     string `json:"vote_mode"`
+	RegisteredAt string `json:"registered_at"`
+}
+
+// listAttendees merges onsite (regismaim) and online registrations; never exposes OTP material.
+func (s *Server) listAttendees(c echo.Context) error {
+	m, err := s.meetingByYear(c.Request().Context(), c.QueryParam("year"))
+	if err != nil {
+		return err
+	}
+	rows, err := s.DB.QueryContext(c.Request().Context(), `
+		SELECT CONCAT('s',r.id), 'onsite', r.id_acc, TRIM(CONCAT_WS(' ',h.N_title,h.N_first,h.N_last)), COALESCE(r.mq_share,0),
+		       COALESCE(h.M_phone,''), '', 'registered', IF(r.group_type='1','proxy',IF(r.group_type='0','person','group')),
+		       1, '', 'self', DATE_FORMAT(r.upd_regis,'%Y-%m-%d %H:%i:%s'), r.upd_regis
+		FROM regismaim r LEFT JOIN holder h ON h.Account_id=r.id_acc WHERE r.meeting_year=?
+		UNION ALL
+		SELECT CONCAT('o',o.id), 'online', o.acc_id, TRIM(CONCAT_WS(' ',h.N_title,h.N_first,h.N_last)), COALESCE(h.Q_share,0),
+		       COALESCE(o.phone,''), COALESCE(o.email,''), o.status, 'person',
+		       o.otp_verified, COALESCE(o.ip_address,''), o.vote_mode, DATE_FORMAT(o.registered_at,'%Y-%m-%d %H:%i:%s'), o.registered_at
+		FROM online_registration o LEFT JOIN holder h ON h.Account_id=o.acc_id WHERE o.meeting_year=?
+		ORDER BY 14 DESC LIMIT 1000`, m.Year, m.Year)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	out := []AttendeeRow{}
+	for rows.Next() {
+		var a AttendeeRow
+		var name *string
+		var ts any
+		if err := rows.Scan(&a.Key, &a.Channel, &a.AccountID, &name, &a.Shares, &a.Phone, &a.Email, &a.Status, &a.RegType, &a.OTPVerified, &a.IP, &a.VoteMode, &a.RegisteredAt, &ts); err != nil {
+			return err
+		}
+		if name != nil {
+			a.Name = *name
+		}
+		out = append(out, a)
+	}
+	return c.JSON(http.StatusOK, out)
+}
+
 type AuditRow struct {
 	ID        int    `json:"id"`
 	AccID     string `json:"acc_id"`

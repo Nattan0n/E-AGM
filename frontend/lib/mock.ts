@@ -1,6 +1,6 @@
 // Demo mode (NEXT_PUBLIC_MOCK=1): answers /api/* calls from in-memory data so the UI can be tried without the Go backend.
 import type {
-  Agenda, AuditRow, Choice, GroupItem, GroupMember, HolderItem, LateRow, Meeting, NovoteRow, OnlineAgenda, OnlineRegRow,
+  Agenda, AttendeeRow, AuditRow, Choice, GroupItem, GroupMember, HolderItem, LateRow, Meeting, NovoteRow, OnlineAgenda, OnlineRegRow,
   Receipt, Stats, Summary, Tally, TermResult, UserRow, VoteRow,
 } from "./types";
 
@@ -176,6 +176,13 @@ export async function mockApi(path: string, method: string, body: Record<string,
         if (seg[1] === "audit") { const items = audit(); return { total: items.length, items: items.slice(0, Number(q.get("limit") ?? 50)) }; }
         if (seg[1] === "meetings" && seg[3] === "summary") return summary();
         if (seg[1] === "meetings") return [s.meeting, { ...s.meeting, id: 0, year: "2568", closed_at: new Date().toISOString() }];
+        if (seg[1] === "attendees") {
+          return Object.entries(s.regs).map(([id, r], i): AttendeeRow => {
+            const h = hold(id)!;
+            const on = r.channel === "online";
+            return { key: `${r.channel}${i}`, channel: r.channel, account_id: id, name: h.name, shares: r.shares, phone: h.phone, email: on ? `holder${id}@example.com` : "", status: on ? "verified" : "registered", reg_type: r.type, otp_verified: on, ip: on ? "10.0.0.5" : "", vote_mode: r.vote_mode, registered_at: r.at.replace("T", " ").slice(0, 19) };
+          });
+        }
         if (seg[1] === "online-registrations") {
           return Object.entries(s.regs).filter(([, r]) => r.channel === "online").map(([id, r], i): OnlineRegRow => {
             const h = hold(id)!;
