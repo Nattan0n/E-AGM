@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { FormEvent, useMemo, useState } from "react";
 import { api, getSession, StaffSession } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -62,13 +63,13 @@ function Body() {
       {desktop ? (
         <div className="adm-filter">
           <label className="adm-fl">Role
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | "")}>
+            <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | "")}>
               <option value="">ทั้งหมด</option>{ROLES.map((r) => <option key={r.k} value={r.k}>{r.label}</option>)}
-            </select></label>
+            </Select></label>
           <label className="adm-fl">สถานะ
-            <select value={stFilter} onChange={(e) => setStFilter(e.target.value)}>
+            <Select value={stFilter} onChange={(e) => setStFilter(e.target.value)}>
               <option value="">ทั้งหมด</option><option value="on">ใช้งาน</option><option value="off">ปิดใช้งาน</option>
-            </select></label>
+            </Select></label>
           <div className="adm-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input aria-label="ค้นหาผู้ใช้" placeholder="ค้นหาชื่อ / username / แผนก" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <span className="adm-count muted">ผู้ใช้งาน {data?.length ?? 0} คน</span>
         </div>
@@ -142,9 +143,9 @@ function Body() {
             <div className="field"><label className="label" htmlFor="dp">แผนก</label>
               <input id="dp" className="input" value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} /></div>
             <div className="field"><label className="label" htmlFor="rl">สิทธิ์</label>
-              <select id="rl" className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
+              <Select id="rl" className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
                 {ROLES.map((r) => <option key={r.k} value={r.k}>{r.label}</option>)}
-              </select></div>
+              </Select></div>
             <div className="field"><label className="label" htmlFor="pw">{form.id ? "รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)" : "รหัสผ่าน (อย่างน้อย 8 ตัวอักษร)"}</label>
               <input id="pw" className="input" type="password" autoComplete="new-password" minLength={form.password ? 8 : undefined} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             {form.id && (

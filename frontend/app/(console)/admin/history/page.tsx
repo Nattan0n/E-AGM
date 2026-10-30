@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { useState } from "react";
 import { download, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -69,9 +70,9 @@ function Body() {
           ) : (
             <div className="adm-card adm-card-b">
               <label className="label" htmlFor="hy">เลือกปีการประชุม</label>
-              <select id="hy" className="input" value={y} onChange={(e) => setYear(e.target.value)}>
+              <Select id="hy" className="input" value={y} onChange={(e) => setYear(e.target.value)}>
                 {list.data?.map((x) => <option key={x.year} value={x.year}>{x.year}{x.closed_at ? " (ปิดแล้ว)" : " (ปัจจุบัน)"}</option>)}
-              </select>
+              </Select>
             </div>
           )}
 

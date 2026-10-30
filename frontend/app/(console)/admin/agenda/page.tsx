@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { FormEvent, useState } from "react";
 import { api, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -117,9 +118,9 @@ function Body() {
             <div className="field"><label className="label" htmlFor="ne">ชื่อวาระ (อังกฤษ)</label>
               <input id="ne" className="input" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} /></div>
             <div className="field"><label className="label" htmlFor="vt">ประเภทมติ</label>
-              <select id="vt" className="input" value={form.vote_type} onChange={(e) => setForm({ ...form, vote_type: e.target.value as VoteType })}>
+              <Select id="vt" className="input" value={form.vote_type} onChange={(e) => setForm({ ...form, vote_type: e.target.value as VoteType })}>
                 {(Object.keys(VOTE_TYPE_LABEL) as VoteType[]).map((k) => <option key={k} value={k}>{VOTE_TYPE_LABEL[k]}</option>)}
-              </select></div>
+              </Select></div>
             <div className="modal-actions">
               <button type="button" className="btn" disabled={busy} onClick={() => setForm(null)}>ยกเลิก</button>
               <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? "กำลังบันทึก..." : "บันทึก"}</button>

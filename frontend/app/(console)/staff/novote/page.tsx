@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { useState } from "react";
 import { api, errMsg, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -62,10 +63,10 @@ function Novote({ canWrite, toast }: Ctx) {
         <div className={styles.row} style={{ gap: 12, justifyContent: "space-between" }}>
           <div style={{ flex: "1 1 280px", minWidth: 0, maxWidth: 520 }}>
             <label className={styles.lbl} htmlFor="ag">เลือกวาระที่ต้องการจัดการ</label>
-            <select id="ag" className={`${styles.sel} ${styles.block}`} value={termId} onChange={(e) => { setSel(e.target.value); setHolder(null); }} disabled={!agendas?.length}>
+            <Select id="ag" className={`${styles.sel} ${styles.block}`} value={termId} onChange={(e) => { setSel(e.target.value); setHolder(null); }} disabled={!agendas?.length}>
               {la && <option>กำลังโหลด...</option>}
               {agendas?.map((a) => <option key={a.term_id} value={a.term_id}>วาระ {a.term_id}: {a.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className={styles.chips}>
             <span className={`${styles.chip} ${styles.chipRed}`}>ตัดสิทธิ์ {rows?.length ?? 0} คน</span>

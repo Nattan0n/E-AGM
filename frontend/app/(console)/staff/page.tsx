@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { Select } from "@/components/Select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, errMsg, fmt } from "@/lib/api";
@@ -92,12 +93,12 @@ function Search({ canWrite, toast }: Ctx) {
           <SearchIcon />
           <input id="q" aria-label="ค้นหา" value={q} onChange={(e) => setQ(e.target.value)} placeholder="เลขทะเบียน / ชื่อ / เลขบัตร (อย่างน้อย 2 ตัวอักษร)" autoComplete="off" />
         </div>
-        <select className={styles.sel} aria-label="สถานะ" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
+        <Select className={styles.sel} aria-label="สถานะ" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
           <option value="all">ทั้งหมด</option>
           <option value="none">ยังไม่ลงทะเบียน</option>
           <option value="onsite">Onsite</option>
           <option value="online">Online</option>
-        </select>
+        </Select>
       </div>
 
       <div aria-live="polite">

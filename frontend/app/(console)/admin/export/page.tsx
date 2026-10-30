@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { useState } from "react";
 import { download, errMsg } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -39,9 +40,9 @@ function Body() {
             <div className="adm-pills"><span className="adm-chip adm-chip-blue">CSV</span>{y && <span className="adm-chip">ปี {y}</span>}</div>
             <div className="adm-ex-foot">
               <label className="label" htmlFor="yr">ปีการประชุม</label>
-              <select id="yr" className="input" value={y} onChange={(e) => setYear(e.target.value)}>
+              <Select id="yr" className="input" value={y} onChange={(e) => setYear(e.target.value)}>
                 {data?.map((m) => <option key={m.year} value={m.year}>{m.year}{m.closed_at ? " (ปิดแล้ว)" : ""}</option>)}
-              </select>
+              </Select>
               <button className="btn btn-primary btn-block" disabled={busy || !y} onClick={() => doExport("summary")}>{busy && which === "summary" ? "กำลังดาวน์โหลด..." : <><Icon name="download" size={15} className="ico-inl" />ดาวน์โหลด CSV</>}</button>
             </div>
           </section>

@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { fmt } from "@/lib/api";
@@ -29,9 +30,9 @@ function Body() {
         {(list.data?.length ?? 0) > 1 && (
           <div className="field" style={{ maxWidth: 260 }}>
             <label className="label" htmlFor="ry">ปีการประชุม</label>
-            <select id="ry" className="input" value={year} onChange={(e) => { window.location.search = `?year=${encodeURIComponent(e.target.value)}`; }}>
+            <Select id="ry" className="input" value={year} onChange={(e) => { window.location.search = `?year=${encodeURIComponent(e.target.value)}`; }}>
               {list.data?.map((x) => <option key={x.year} value={x.year}>{x.year}{x.closed_at ? " (ปิดแล้ว)" : ""}</option>)}
-            </select>
+            </Select>
           </div>
         )}
       </div>

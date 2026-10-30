@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
+import { Select } from "@/components/Select";
 import { FormEvent, useState } from "react";
 import { useApi } from "@/lib/hooks";
 import type { AuditRow } from "@/lib/types";
@@ -51,10 +52,10 @@ function Body() {
       <PageHead title="Audit Log" sub={`บันทึกกิจกรรมทั้งหมดในระบบ · ${total.toLocaleString("th-TH")} รายการ`} actions={<button className="btn" onClick={reload}>⟳ รีเฟรช</button>} />
       <form className="adm-filter" onSubmit={submit}>
         <label className="adm-fl">การกระทำ
-          <select id="act" value={action} onChange={(e) => { setAction(e.target.value); setPage(0); }}>
+          <Select id="act" value={action} onChange={(e) => { setAction(e.target.value); setPage(0); }}>
             <option value="">ทั้งหมด</option>
             {ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-          </select></label>
+          </Select></label>
         <div className="adm-search"><span aria-hidden className="ico-box"><Icon name="search" size={18} /></span><input id="aq" aria-label="ค้นหา เลขบัญชี รายละเอียด" placeholder="ค้นหา เลขบัญชี / รายละเอียด" value={qInput} onChange={(e) => setQInput(e.target.value)} /></div>
         <button type="submit" className="btn btn-primary">ค้นหา</button>
         <span className="adm-count muted">{total.toLocaleString("th-TH")} รายการ</span>
