@@ -30,11 +30,11 @@ function Search({ canWrite, toast }: Ctx) {
   const seq = useRef(0);
   const term = q.trim();
 
-  async function run(t: string) {
+  async function run(t: string, f: Filter = filter) {
     const id = ++seq.current;
     setBusy(true);
     try {
-      const r = await api<HolderItem[]>(`/api/holders/search?q=${encodeURIComponent(t)}`);
+      const r = await api<HolderItem[]>(`/api/holders/search?q=${encodeURIComponent(t)}${f === "all" ? "" : `&status=${f}`}`);
       if (id === seq.current) { setRows(r); setErr(""); }
     } catch (e) { if (id === seq.current) { setRows(null); setErr(errMsg(e)); } }
     finally { if (id === seq.current) setBusy(false); }
@@ -43,7 +43,7 @@ function Search({ canWrite, toast }: Ctx) {
     if ([...term].length < 2) { seq.current++; return; }
     const t = setTimeout(() => run(term), 300);
     return () => clearTimeout(t);
-  }, [term]);
+  }, [term, filter]);
 
   async function doConfirm() {
     if (!confirm) return;
@@ -65,7 +65,7 @@ function Search({ canWrite, toast }: Ctx) {
 
   const short = [...term].length < 2;
   const rowsAll = rowsRaw && !short ? rowsRaw : null;
-  const rows = rowsAll ? rowsAll.filter((h) => filter === "all" || h.status === filter) : null;
+  const rows = rowsAll; // the status filter is applied by the server, before its 50-row limit
   const reg = stats ? stats.onsite_count + stats.online_count : 0;
   const regLabel = (h: HolderItem) => (h.reg_type === "person" ? "มาด้วยตนเอง" : h.reg_type === "proxy" ? "มอบฉันทะ" : h.reg_type === "group" ? `กลุ่ม ${h.group_name ?? ""}` : "");
   const actions = (h: HolderItem) => (canWrite ? (
@@ -180,8 +180,7 @@ function Search({ canWrite, toast }: Ctx) {
             </table>
           </div>
           <div className={styles.tblFoot}>
-            <span>แสดง 1–{rows.length} จาก {rows.length} รายการ</span>
-            <div className={styles.pager}><span className={styles.pg}>‹</span><span className={`${styles.pg} ${styles.pgOn}`}>1</span><span className={styles.pg}>›</span></div>
+            <span>{rows.length >= 50 ? "แสดง 50 รายการแรก — พิมพ์ให้เจาะจงขึ้นเพื่อกรองผลลัพธ์" : `พบ ${rows.length} รายการ`}</span>
           </div>
         </div>
       )}

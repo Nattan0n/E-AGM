@@ -56,7 +56,7 @@ function Ballots({ toast }: Ctx) {
   const group = groups?.find((g) => String(g.id) === gid);
   let people: Person[] | null = null;
   if (gid) people = members ? members.map((m) => ({ account_id: m.account_id, name: m.name, shares: m.shares, note: `กลุ่ม ${group?.name ?? gid}` })) : null;
-  else if (h && h.status === "onsite" && rows) people = [{ account_id: h.account_id, name: h.name, shares: rows[0]?.shares ?? h.shares, note: h.reg_type === "proxy" ? "ผู้รับมอบฉันทะ" : h.reg_type === "group" ? `กลุ่ม ${h.group_name ?? ""}` : "-" }];
+  else if (h && h.status === "onsite" && rows) people = [{ account_id: h.account_id, name: h.name, shares: Math.max(0, ...rows.map((r) => r.shares), 0) || h.shares, note: h.reg_type === "proxy" ? "ผู้รับมอบฉันทะ" : h.reg_type === "group" ? `กลุ่ม ${h.group_name ?? ""}` : "-" }];
 
   if (!gid && loading) return <p className={styles.empty}>กำลังโหลดข้อมูลผู้ถือหุ้น...</p>;
   if (!gid && !h) return (

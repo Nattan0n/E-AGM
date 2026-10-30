@@ -18,20 +18,25 @@ function Novote({ canWrite, toast }: Ctx) {
   const [holder, setHolder] = useState<HolderItem | null>(null);
   const [restore, setRestore] = useState<NovoteRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [askForce, setAskForce] = useState(false);
 
   const agenda = agendas?.find((a) => a.term_id === termId);
   const closed = agenda?.status === "closed";
   const total = rows?.reduce((s, r) => s + r.shares, 0) ?? 0;
 
-  async function add() {
+  async function add(force = false) {
     if (!holder || !termId) return;
     setBusy(true);
     try {
-      await api("/api/novote", { method: "POST", body: { account_id: holder.account_id, term_id: termId } });
+      await api("/api/novote", { method: "POST", body: { account_id: holder.account_id, term_id: termId, force } });
       toast("เพิ่มรายชื่อผู้ไม่มีสิทธิ์แล้ว");
-      setHolder(null);
+      setHolder(null); setAskForce(false);
       await reload();
-    } catch (e) { toast(errMsg(e), true); }
+    } catch (e) {
+      // the holder already voted on this agenda: ask before discarding that vote
+      if (e instanceof Error && e.message === "has_votes") setAskForce(true);
+      else toast(errMsg(e), true);
+    }
     finally { setBusy(false); }
   }
   async function doRestore() {
@@ -79,7 +84,7 @@ function Novote({ canWrite, toast }: Ctx) {
             <HolderCard h={holder} />
             <div className={styles.row}>
               <button className={styles.btn} onClick={() => setHolder(null)} disabled={busy}>ยกเลิก</button>
-              <button className={`${styles.btn} ${styles.bDanger}`} onClick={add} disabled={!canWrite || busy}>{busy ? "กำลังบันทึก..." : "＋ เพิ่มเป็นผู้ไม่มีสิทธิ์"}</button>
+              <button className={`${styles.btn} ${styles.bDanger}`} onClick={() => add()} disabled={!canWrite || busy}>{busy ? "กำลังบันทึก..." : "＋ เพิ่มเป็นผู้ไม่มีสิทธิ์"}</button>
             </div>
           </div>
         )}
@@ -108,6 +113,14 @@ function Novote({ canWrite, toast }: Ctx) {
             </table>
           </div>
         </div>
+      )}
+
+      {askForce && holder && (
+        <StModal title="ผู้ถือหุ้นลงคะแนนในวาระนี้แล้ว" onClose={() => !busy && setAskForce(false)}
+          actions={<><button className={styles.btn} onClick={() => setAskForce(false)} disabled={busy}>ยกเลิก</button><button className={`${styles.btn} ${styles.bPri}`} onClick={() => add(true)} disabled={busy}>{busy ? "..." : "ตัดสิทธิ์และลบคะแนน"}</button></>}>
+          <p><b>{holder.name}</b> ({holder.account_id}) ลงคะแนนในวาระ {termId} ไปแล้ว</p>
+          <p className={styles.errText}>การตัดสิทธิ์จะลบคะแนนที่ลงไว้ทั้งแบบ Onsite และ Online และกู้คืนไม่ได้ (บันทึกใน Audit)</p>
+        </StModal>
       )}
 
       {restore && (

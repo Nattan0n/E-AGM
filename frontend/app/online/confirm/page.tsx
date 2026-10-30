@@ -2,10 +2,10 @@
 import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearSession, CHOICE_LABEL, fmt } from "@/lib/api";
+import { CHOICE_LABEL, fmt } from "@/lib/api";
 import { Receipt } from "@/lib/types";
 import { OnlineShell } from "@/components/online/OnlineShell";
-import { useHolderApi } from "@/components/online/hooks";
+import { useHolderApi, holderLogout } from "@/components/online/hooks";
 import s from "@/components/online/online.module.css";
 
 const dt = (v: string) => {
@@ -16,7 +16,7 @@ const dt = (v: string) => {
 export default function OnlineConfirm() {
   const router = useRouter();
   const { data, error, loading } = useHolderApi<Receipt>("/api/online/receipt");
-  const logout = () => { clearSession("holder"); router.replace("/"); };
+  const logout = () => { void holderLogout((p) => router.replace(p)); };
 
   const chCls: Record<string, string> = { agree: s.bAgree, disagree: s.bDis, abstain: s.bAbs, spoiled: s.bSpo };
   const manual = data ? data.votes.filter((v) => !v.auto).length : 0;

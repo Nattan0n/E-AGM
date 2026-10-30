@@ -41,6 +41,7 @@ function Vote({ canWrite, toast }: Ctx) {
   const [choice, setChoice] = useState<Choice | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const { data: history, reload: reloadHistory } = useApi<VoteRow[]>(holder ? `/api/vote/onsite/${encodeURIComponent(holder.account_id)}` : null, "staff", 4000);
 
   const termId = agendas && agendas.length > 0
@@ -64,14 +65,27 @@ function Vote({ canWrite, toast }: Ctx) {
     if (!holder || !agenda || !ready) return;
     setBusy(true);
     try {
+      const overwrite = !!row?.voted; // the confirm dialog already warned about replacing the earlier vote
       const body = splitMode
-        ? { account_id: holder.account_id, term_id: agenda.term_id, split: { agree: spAgree, disagree: spN.d, abstain: spN.a, spoiled: spN.s } }
-        : { account_id: holder.account_id, term_id: agenda.term_id, choice };
+        ? { account_id: holder.account_id, term_id: agenda.term_id, overwrite, split: { agree: spAgree, disagree: spN.d, abstain: spN.a, spoiled: spN.s } }
+        : { account_id: holder.account_id, term_id: agenda.term_id, overwrite, choice };
       await api("/api/vote/onsite", { method: "POST", body });
       toast(splitMode ? "บันทึกการแบ่งคะแนนแล้ว" : `บันทึกคะแนน "${CHOICE_LABEL[choice!]}" แล้ว`);
       setConfirming(false); setChoice(null); setSp({ disagree: "", abstain: "", spoiled: "" });
       await reloadHistory();
     } catch (e) { toast(errMsg(e), true); setConfirming(false); }
+    finally { setBusy(false); }
+  }
+
+  async function clearVote() {
+    if (!holder || !agenda) return;
+    setBusy(true);
+    try {
+      await api(`/api/vote/onsite/${encodeURIComponent(holder.account_id)}/${encodeURIComponent(agenda.term_id)}`, { method: "DELETE" });
+      toast("ล้างคะแนนแล้ว — ผู้ถือหุ้นกลับเป็น \"ยังไม่ลง\"");
+      setClearing(false);
+      await reloadHistory();
+    } catch (e) { toast(errMsg(e), true); setClearing(false); }
     finally { setBusy(false); }
   }
 
@@ -112,9 +126,9 @@ function Vote({ canWrite, toast }: Ctx) {
         <div className={`${styles.card} ${styles.vArea2}`}>
           <div className={styles.cardTitle}>{holder ? "ผู้ถือหุ้นที่เลือก" : "ค้นหาผู้ถือหุ้น"}</div>
           {!holder ? (
-            <HolderPicker label="ผู้ถือหุ้นที่ลงทะเบียนเข้าร่วมแล้ว" filter={(h) => h.status === "onsite"} actionLabel="เลือก" onPick={(h) => { setHolder(h); setChoice(null); }} />
+            <HolderPicker label="ผู้ถือหุ้นที่ลงทะเบียนเข้าร่วมแล้ว" filter={(h) => h.status === "onsite"} actionLabel="เลือก" onPick={(h) => { setHolder(h); setChoice(null); setSplitMode(false); setSp({ disagree: "", abstain: "", spoiled: "" }); }} />
           ) : (
-            <HolderCard h={holder}><button className={`${styles.btn} ${styles.sm}`} onClick={() => { setHolder(null); setChoice(null); }}>เปลี่ยน</button></HolderCard>
+            <HolderCard h={holder}><button className={`${styles.btn} ${styles.sm}`} onClick={() => { setHolder(null); setChoice(null); setSplitMode(false); setSp({ disagree: "", abstain: "", spoiled: "" }); }}>เปลี่ยน</button></HolderCard>
           )}
           <p className={styles.muted} style={{ marginTop: 10 }}>ลงคะแนนแทนได้เฉพาะผู้ถือหุ้นที่เจ้าหน้าที่ลงทะเบียนให้ที่หน้างาน (ผู้ที่ลงทะเบียนออนไลน์ลงคะแนนเองผ่านระบบ)</p>
         </div>
@@ -134,9 +148,10 @@ function Vote({ canWrite, toast }: Ctx) {
           </div>
           <div style={{ margin: "12px 0 14px" }}>
             <b>วาระที่ {agenda.term_id}</b> <span className={styles.muted}>— {agenda.name}</span>
-            {holder && row && <div className={styles.muted} style={{ marginTop: 2 }}>{fmt(row.shares)} หุ้น{row.voted && <> · <span className={`${styles.tag} ${styles.tGreen}`}>ลงแล้ว: {row.choice === "split" ? splitText(row) : CHOICE_LABEL[row.choice]}</span></>}</div>}
+            {holder && row && <div className={styles.muted} style={{ marginTop: 2 }}>{fmt(row.shares)} หุ้น{row.voted && <> · <span className={`${styles.tag} ${styles.tGreen}`}>ลงแล้ว: {row.choice === "split" ? splitText(row) : CHOICE_LABEL[row.choice]}</span>{canWrite && votable && <> <button type="button" className={`${styles.btn} ${styles.sm}`} onClick={() => setClearing(true)} disabled={busy}>ล้างคะแนน</button></>}</>}</div>}
           </div>
-          {holder && (noRight || (row && row.shares === 0)) && <p className={styles.errText} style={{ marginBottom: 8 }}>ผู้ถือหุ้นรายนี้ไม่มีสิทธิ์ลงคะแนนในวาระนี้</p>}
+          {holder && holder.status !== "onsite" && <p className={styles.errText} style={{ marginBottom: 8 }}>{holder.status === "online" ? "ผู้ถือหุ้นรายนี้ลงทะเบียนออนไลน์ — ลงคะแนนเองผ่านระบบ (หรือให้เจ้าหน้าที่กด \"เปลี่ยนเป็น Onsite\" ที่หน้าค้นหาก่อน)" : "ผู้ถือหุ้นรายนี้ยังไม่ได้ลงทะเบียน — ลงทะเบียนก่อนจึงจะลงคะแนนแทนได้"}</p>}
+          {holder && holder.status === "onsite" && (noRight || (row && row.shares === 0)) && <p className={styles.errText} style={{ marginBottom: 8 }}>ผู้ถือหุ้นรายนี้ไม่มีสิทธิ์ลงคะแนนในวาระนี้</p>}
           {!holder && <p className={styles.muted} style={{ marginBottom: 10 }}>เลือกผู้ถือหุ้นก่อนจึงจะลงคะแนนได้</p>}
           {canVote && (
             <label className={styles.check} style={{ marginBottom: 10 }}>
@@ -199,11 +214,21 @@ function Vote({ canWrite, toast }: Ctx) {
         </button>
       </div>
 
+      {clearing && holder && (
+        <StModal title="ล้างคะแนนที่ลงไว้" onClose={() => !busy && setClearing(false)}
+          actions={<><button className={styles.btn} onClick={() => setClearing(false)} disabled={busy}>ยกเลิก</button><button className={`${styles.btn} ${styles.bPri}`} onClick={clearVote} disabled={busy}>{busy ? "กำลังล้าง..." : "ล้างคะแนน"}</button></>}>
+          <p>{holder.name} ({holder.account_id})</p>
+          <p>วาระ {agenda.term_id}: {agenda.name}</p>
+          <p className={styles.errText}>คะแนนที่ลงไว้ ({row ? (row.choice === "split" ? splitText(row) : CHOICE_LABEL[row.choice]) : "-"}) จะถูกลบ และผู้ถือหุ้นจะกลับเป็น &quot;ยังไม่ลง&quot; การกระทำนี้ถูกบันทึกใน Audit</p>
+        </StModal>
+      )}
+
       {confirming && ready && holder && (
         <StModal title="ยืนยันการลงคะแนน" onClose={() => !busy && setConfirming(false)}
           actions={<><button className={styles.btn} onClick={() => setConfirming(false)} disabled={busy}>ยกเลิก</button><button className={`${styles.btn} ${styles.bPri}`} onClick={submit} disabled={busy}>{busy ? "กำลังบันทึก..." : "ยืนยัน"}</button></>}>
           <p>{holder.name} ({holder.account_id})</p>
           <p>วาระ {agenda.term_id}: {agenda.name}</p>
+          {row?.voted && <p className={styles.errText}>⚠ ผู้ถือหุ้นรายนี้ลงคะแนนในวาระนี้แล้ว ({row.choice === "split" ? splitText(row) : CHOICE_LABEL[row.choice]}) — การบันทึกจะเขียนทับคะแนนเดิม</p>}
           {splitMode
             ? <p style={{ fontSize: 16, fontWeight: 700, margin: "6px 0" }}>เห็นด้วย {fmt(spAgree)} · ไม่เห็นด้วย {fmt(spN.d)} · งดออกเสียง {fmt(spN.a)} · บัตรเสีย {fmt(spN.s)}</p>
             : <p style={{ fontSize: 22, fontWeight: 700, margin: "6px 0" }}>{CHOICE_LABEL[choice!]}</p>}

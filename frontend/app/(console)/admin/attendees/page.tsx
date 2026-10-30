@@ -78,6 +78,7 @@ function Body() {
         </div>
         <span className="adm-count muted">แสดง {fmt(rows.length)} รายการ</span>
       </div>
+      {(data?.length ?? 0) >= 1000 && <p className="muted" style={{ margin: "0 0 8px" }}>แสดงสูงสุด 1,000 รายการล่าสุด — ใช้ช่องค้นหาเพื่อหารายการที่ต้องการ</p>}
       <State loading={loading && !data} error={data ? "" : error} empty={rows.length === 0} emptyText="ไม่พบรายการ">
         {desktop ? (
           <div className="adm-card adm-tablecard">

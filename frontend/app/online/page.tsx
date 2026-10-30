@@ -1,9 +1,9 @@
 "use client";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/api";
 import { OnlineShell } from "@/components/online/OnlineShell";
-import { RegisterResp, writePending } from "@/components/online/hooks";
+import { RegisterResp, takeNotice, writePending } from "@/components/online/hooks";
 import { LogoMark } from "@/components/brand/Logo";
 import { useIsDesktop } from "@/lib/media";
 import { Icon } from "@/components/brand/Icon";
@@ -27,6 +27,7 @@ export default function OnlineRegister() {
   const [consent, setConsent] = useState(!!DEV.account_id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => { const n = takeNotice(); if (n) { const t = setTimeout(() => setError(n), 0); return () => clearTimeout(t); } }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -79,7 +80,7 @@ export default function OnlineRegister() {
             <label className={m.label} htmlFor="acc">เลขทะเบียนผู้ถือหุ้น <span className={m.req}>*</span></label>
             <div className={m.wrap}>
               <Icon name="register" size={18} />
-              <input id="acc" className={m.input} value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="เช่น TRU-000001" maxLength={12} autoCapitalize="characters" autoComplete="off" />
+              <input id="acc" className={m.input} value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="เช่น TRU-000001" maxLength={25} autoCapitalize="characters" autoComplete="off" />
             </div>
             <span className={m.hint}>ระบุในหนังสือเชิญประชุม หรือตรวจสอบจากทะเบียนผู้ถือหุ้น</span>
           </div>
@@ -154,7 +155,7 @@ export default function OnlineRegister() {
           <div className={`${s.cardc} ${s.fields}`}>
             <div className="field">
               <label className="label" htmlFor="acc">เลขทะเบียนผู้ถือหุ้น <span className={s.req}>*</span></label>
-              <input id="acc" className={`input ${s.in}`} value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="เช่น TRU-000001" maxLength={12} autoCapitalize="characters" autoComplete="off" />
+              <input id="acc" className={`input ${s.in}`} value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="เช่น TRU-000001" maxLength={25} autoCapitalize="characters" autoComplete="off" />
               <div className={s.hint}>ระบุในหนังสือเชิญประชุม หรือตรวจสอบจากทะเบียนผู้ถือหุ้น</div>
             </div>
             <div className="field">
@@ -198,7 +199,7 @@ export default function OnlineRegister() {
           <div className={s.tiles}>
             <div className={s.tile}><i style={{ background: "#1e3a8a" }} /><b>Onsite</b><span>เข้าร่วม ณ สถานที่</span></div>
             <div className={`${s.tile} ${s.tileOn}`}><i style={{ background: "#2563eb" }} /><b>Online</b><span>ท่านกำลังใช้ช่องทางนี้</span></div>
-            <div className={s.tile}><i style={{ background: "#f59e0b" }} /><b>มอบฉันทะ</b><span>ผ่านผู้รับมอบอำนาจ</span></div>
+            <div className={s.tile}><i style={{ background: "#f59e0b" }} /><b>มอบฉันทะ</b><span>ส่งหนังสือมอบฉันทะตามหนังสือเชิญประชุม</span></div>
           </div>
           <div className={s.support}>หากมีปัญหาการเข้าสู่ระบบ กรุณาติดต่อเจ้าหน้าที่ ณ จุดลงทะเบียน</div>
         </div>

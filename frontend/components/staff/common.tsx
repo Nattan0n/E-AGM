@@ -28,7 +28,7 @@ export function StaffPage({ title, sub, children }: { title: string; sub?: strin
   const toast = useCallback((msg: string, err = false) => {
     setT({ msg, err });
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setT(null), 3000);
+    timer.current = setTimeout(() => setT(null), err ? 7000 : 3500);
   }, []);
   if (!session) return null;
   const closed = !!meeting?.closed_at;
@@ -43,7 +43,7 @@ export function StaffPage({ title, sub, children }: { title: string; sub?: strin
         {session.role === "viewer" && <div className={styles.banner}>บัญชี Viewer — ดูข้อมูลได้อย่างเดียว</div>}
         {children({ session, canWrite, closed, toast })}
       </div>
-      {t && <div className={`${styles.toast} ${t.err ? styles.toastErr : ""}`} role="status">{t.msg}</div>}
+      {t && <div className={`${styles.toast} ${t.err ? styles.toastErr : ""}`} role={t.err ? "alert" : "status"}>{t.msg}</div>}
     </>
   );
 }
@@ -112,7 +112,13 @@ export function HolderPicker({ onPick, label = "ค้นหาผู้ถื�
       <label className={styles.lbl} htmlFor="hp-q">{label}</label>
       <div className={styles.sbox}>
         <SearchIcon />
-        <input id="hp-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} autoComplete="off" disabled={disabled} />
+        <input id="hp-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} autoComplete="off" disabled={disabled}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || disabled) return;
+            const exact = shown.find((h) => h.account_id === term || h.masked_id === term);
+            const pick = exact ?? (shown.length === 1 ? shown[0] : null);
+            if (pick) { e.preventDefault(); onPick(pick); setQ(""); setRows([]); }
+          }} />
       </div>
       {active && (
         <div style={{ marginTop: 10 }} aria-live="polite">
@@ -164,14 +170,28 @@ export function HolderCard({ h, children }: { h: HolderItem; children?: ReactNod
 
 /** Bottom sheet on phones, centered dialog on desktop. */
 export function StModal({ title, children, onClose, actions }: { title: string; children: ReactNode; onClose: () => void; actions: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  useEffect(() => { close.current = onClose; });
   useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const prev = document.activeElement as HTMLElement | null;
+    const focusables = () => Array.from(box.current?.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex='-1'])") ?? []);
+    (focusables().pop() ?? box.current)?.focus(); // last button = the primary action
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { close.current(); return; }
+      if (e.key !== "Tab") return;
+      const f = focusables();
+      if (f.length === 0) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
+    return () => { window.removeEventListener("keydown", h); prev?.focus?.(); };
+  }, []);
   return (
     <div className={styles.back2} onClick={onClose}>
-      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div ref={box} tabIndex={-1} className={styles.sheet} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className={styles.grab} />
         <h3>{title}</h3>
         <div className={styles.sheetBody}>{children}</div>
@@ -181,9 +201,8 @@ export function StModal({ title, children, onClose, actions }: { title: string; 
   );
 }
 
-/** Loads a holder by exact account id using the search endpoint. */
+/** Loads one holder by exact account id (no search cut-off). */
 export async function fetchHolder(acc: string): Promise<HolderItem | null> {
-  const q = acc.length < 2 ? acc.padStart(2, "0") : acc;
-  const r = await api<HolderItem[]>(`/api/holders/search?q=${encodeURIComponent(q)}`);
-  return r.find((h) => h.account_id === acc) ?? null;
+  const r = await api<HolderItem[]>(`/api/holders/${encodeURIComponent(acc)}`);
+  return r[0] ?? null;
 }

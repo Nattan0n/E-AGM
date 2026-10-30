@@ -3,10 +3,10 @@ import { Icon } from "@/components/brand/Icon";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, clearSession, errMsg, fmt } from "@/lib/api";
+import { api, errMsg, fmt } from "@/lib/api";
 import { OnlineAgenda } from "@/lib/types";
 import { OnlineShell } from "@/components/online/OnlineShell";
-import { refreshMe, useHolderApi, useMe } from "@/components/online/hooks";
+import { refreshMe, useHolderApi, useMe, holderLogout } from "@/components/online/hooks";
 import { useIsDesktop } from "@/lib/media";
 import s from "@/components/online/online.module.css";
 
@@ -57,6 +57,15 @@ function Body({ ag, desktop }: { ag: AgState; desktop: boolean }) {
     setSwitching(false);
   };
 
+  const noteText = me?.meeting.announcement ?? "";
+  const docsUrl = me?.meeting.documents_url ?? "";
+  const notice = (noteText || docsUrl) ? (
+    <div className={s.lobbyMode} role="note" style={{ marginBottom: 12, flexWrap: "wrap" }}>
+      <Icon name="warn" size={16} className="ico-inl" />
+      {noteText && <span style={{ flex: "1 1 220px" }}>{noteText}</span>}
+      {docsUrl && <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm">เอกสารการประชุม ↗</a>}
+    </div>
+  ) : null;
   const hero = me && (
     <section className={`${s.hero} lava`}>
       <div className={s.heroname}>{me.name}</div>
@@ -164,11 +173,11 @@ function Body({ ag, desktop }: { ag: AgState; desktop: boolean }) {
       <>
         <div className="page-head"><div><h1>ห้องรอประชุม</h1><p className="muted">ยังไม่ถึงเวลาเปิดประชุม — ระบบจะเปิดให้อัตโนมัติเมื่อผู้ดูแลระบบเริ่มการประชุม</p></div></div>
         <div className={s.wgrid}>
-          <div className={s.wleft}>{hero}</div>
+          <div className={s.wleft}>{notice}{hero}</div>
           <aside className={s.wright}>{lobby}</aside>
         </div>
       </>
-    ) : <>{hero}{lobby}</>;
+    ) : <>{notice}{hero}{lobby}</>;
   }
 
   if (desktop) {
@@ -177,13 +186,13 @@ function Body({ ag, desktop }: { ag: AgState; desktop: boolean }) {
         <div className="page-head"><div><h1>ห้องประชุมออนไลน์</h1><p className="muted">{staffMode ? "ลงทะเบียนแล้ว — แจ้งเลขทะเบียนที่จุดลงทะเบียน เจ้าหน้าที่จะลงคะแนนให้ท่าน" : "รอเจ้าหน้าที่เปิดวาระ แล้วเข้าไปลงคะแนนได้ทันที"}</p></div></div>
         {loading}
         <div className={s.wgrid}>
-          <div className={s.wleft}>{hero}{agenda}</div>
+          <div className={s.wleft}>{notice}{hero}{agenda}</div>
           <aside className={s.wright}>{state}{quorum}{confirmLink}</aside>
         </div>
       </>
     );
   }
-  return <>{loading}{hero}{state}{quorum}{agenda}{confirmLink}</>;
+  return <>{loading}{notice}{hero}{state}{quorum}{agenda}{confirmLink}</>;
 }
 
 function MobileFooter({ ag }: { ag: AgState }) {
@@ -205,7 +214,7 @@ export default function OnlineWaiting() {
   const router = useRouter();
   const desktop = useIsDesktop();
   const ag = useHolderApi<OnlineAgenda[]>("/api/online/agendas", 5000);
-  const logout = () => { clearSession("holder"); router.replace("/"); };
+  const logout = () => { void holderLogout((p) => router.replace(p)); };
   const footer = desktop ? undefined : <MobileFooter ag={ag} />;
   return (
     <OnlineShell title="ห้องประชุมออนไลน์" step={3} auth pollMs={5000} width="full" onLogout={logout} footer={footer}

@@ -14,6 +14,8 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
   const [quorum, setQuorum] = useState(String(m.quorum_pct));
   const [online, setOnline] = useState(m.online_enabled);
   const [advance, setAdvance] = useState(m.advance_entry);
+  const [docs, setDocs] = useState(m.documents_url ?? "");
+  const [note, setNote] = useState(m.announcement ?? "");
   const closed = !!m.closed_at;
   const q = Number(quorum);
   const qOk = q > 0 && q <= 100;
@@ -21,7 +23,7 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!qOk) return;
-    const ok = await run(() => api("/api/admin/meeting", { method: "PUT", body: { detail, date, quorum_pct: q, online_enabled: online, advance_entry: advance } }), "บันทึกการตั้งค่าแล้ว");
+    const ok = await run(() => api("/api/admin/meeting", { method: "PUT", body: { detail, date, quorum_pct: q, online_enabled: online, advance_entry: advance, documents_url: docs, announcement: note } }), "บันทึกการตั้งค่าแล้ว");
     if (ok) onDone();
   };
 
@@ -36,6 +38,12 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
         <div className="field"><label className="label" htmlFor="mq">เกณฑ์องค์ประชุม (%)</label>
           <input id="mq" className="input" type="number" step="0.01" min="0.01" max="100" disabled={closed} value={quorum} onChange={(e) => setQuorum(e.target.value)} />
           {!qOk && <p className="error-text">ต้องอยู่ระหว่าง 0-100</p>}</div>
+        <div className="field"><label className="label" htmlFor="mdoc">ลิงก์เอกสารการประชุม (หนังสือเชิญ / รายละเอียดวาระ)</label>
+          <input id="mdoc" className="input" type="url" disabled={closed} value={docs} onChange={(e) => setDocs(e.target.value)} placeholder="https://..." />
+          <p className="muted" style={{ fontSize: 12 }}>แสดงเป็นปุ่ม &quot;เอกสารการประชุม&quot; ให้ผู้ถือหุ้นในห้องประชุมออนไลน์</p></div>
+        <div className="field"><label className="label" htmlFor="mnote">ประกาศถึงผู้ถือหุ้น</label>
+          <textarea id="mnote" className="input" rows={3} maxLength={500} disabled={closed} value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น เริ่มประชุมเวลา 14.00 น. กรุณาเข้าสู่ระบบล่วงหน้า 15 นาที" />
+          <p className="muted" style={{ fontSize: 12 }}>{note.length}/500 — แสดงที่หน้าห้องประชุมออนไลน์ (เว้นว่างเพื่อซ่อน)</p></div>
         <label className="adm-check">
           <input type="checkbox" disabled={closed} checked={online} onChange={(e) => setOnline(e.target.checked)} /> เปิดให้ลงทะเบียน/ลงคะแนนออนไลน์
         </label>

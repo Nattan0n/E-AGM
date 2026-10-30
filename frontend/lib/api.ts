@@ -20,8 +20,32 @@ export function getSession<T = { token: string }>(kind: Session): T | null {
 export function setSession(kind: Session, value: object) { sessionStorage.setItem(KEY[kind], JSON.stringify(value)); }
 export function clearSession(kind: Session) { sessionStorage.removeItem(KEY[kind]); }
 
+/** Backend errors that are written in English, shown to people in Thai. Codes such as already_voted are handled by the pages. */
+const ERR_TH: Record<string, string> = {
+  "meeting is closed (read-only)": "การประชุมปิดแล้ว อยู่ในโหมดอ่านอย่างเดียว",
+  "invalid credentials": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+  "agenda is not open for voting": "วาระนี้ยังไม่เปิดให้ลงคะแนน",
+  "agenda not found": "ไม่พบวาระ",
+  "agenda already closed": "วาระนี้ปิดแล้ว",
+  "this agenda is for acknowledgement only": "วาระนี้เป็นการรับทราบ ไม่มีการลงคะแนน",
+  "holder is not registered onsite": "ผู้ถือหุ้นรายนี้ยังไม่ได้ลงทะเบียนที่หน้างาน",
+  "holder has no voting right on this agenda": "ผู้ถือหุ้นรายนี้ไม่มีสิทธิ์ลงคะแนนในวาระนี้",
+  "holder has already voted - cannot cancel registration": "ผู้ถือหุ้นลงคะแนนแล้ว ไม่สามารถยกเลิกการลงทะเบียนได้",
+  "member has already voted": "สมาชิกรายนี้ลงคะแนนแล้ว",
+  "register the holder first": "กรุณาลงทะเบียนผู้ถือหุ้นก่อน",
+  "late arrival already recorded": "บันทึกการมาสายของผู้ถือหุ้นรายนี้แล้ว",
+  "already excluded from this agenda": "ผู้ถือหุ้นรายนี้ถูกตัดสิทธิ์ในวาระนี้แล้ว",
+  "holder already registered": "ผู้ถือหุ้นรายนี้ลงทะเบียนแล้ว",
+  "username already exists": "มีชื่อผู้ใช้นี้อยู่แล้ว",
+  "password must be at least 8 characters": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+  "account_id, term_id and a valid choice (or split) are required": "ข้อมูลไม่ครบ กรุณาเลือกผู้ถือหุ้น วาระ และผลการลงคะแนน",
+  "term_id and a valid choice are required": "กรุณาเลือกวาระและผลการลงคะแนน",
+  "account_id and 6-digit otp required": "กรุณากรอกรหัส OTP 6 หลัก",
+  "q must be at least 2 characters": "พิมพ์อย่างน้อย 2 ตัวอักษร",
+};
+
 export class ApiError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string, public data?: { errors?: { row: number; msg: string }[] }) { super(message); }
 }
 
 export async function api<T = unknown>(
@@ -54,8 +78,9 @@ export async function api<T = unknown>(
   let data: unknown = undefined;
   try { data = text ? JSON.parse(text) : undefined; } catch { /* non-JSON body */ }
   if (!res.ok) {
-    const msg = (data as { message?: string } | undefined)?.message ?? `เกิดข้อผิดพลาด (${res.status})`;
-    throw new ApiError(res.status, msg);
+    const raw = (data as { message?: string } | undefined)?.message;
+    const msg = (raw && ERR_TH[raw]) || raw || `เกิดข้อผิดพลาด (${res.status})`;
+    throw new ApiError(res.status, msg, data as ApiError["data"]);
   }
   return data as T;
 }

@@ -3,11 +3,11 @@ import { Icon } from "@/components/brand/Icon";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, clearSession, CHOICE_LABEL, errMsg } from "@/lib/api";
+import { api, CHOICE_LABEL, errMsg } from "@/lib/api";
 import { Choice, OnlineAgenda } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 import { OnlineShell } from "@/components/online/OnlineShell";
-import { refreshMe, useHolderApi, useMe } from "@/components/online/hooks";
+import { refreshMe, useHolderApi, useMe, holderLogout } from "@/components/online/hooks";
 import s from "@/components/online/online.module.css";
 
 const CHOICES: Choice[] = ["agree", "disagree", "abstain", "spoiled"];
@@ -44,7 +44,7 @@ export default function OnlineVote() {
   const { data, error, loading, reload } = useHolderApi<OnlineAgenda[]>("/api/online/agendas", 4000);
   const [target, setTarget] = useState<{ a: OnlineAgenda; choice: Choice } | null>(null);
   const router = useRouter();
-  const logout = () => { clearSession("holder"); router.replace("/"); };
+  const logout = () => { void holderLogout((p) => router.replace(p)); };
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [voteErr, setVoteErr] = useState("");

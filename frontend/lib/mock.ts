@@ -35,7 +35,7 @@ function seed(): State {
     mk(5, "5", "พิจารณาเลือกตั้งกรรมการแทนกรรมการที่ออกตามวาระ", "pending", "ordinary"),
     mk(6, "6", "พิจารณาแก้ไขเพิ่มเติมข้อบังคับของบริษัท", "pending", "special"),
   ];
-  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, quorum_pct: 25 };
+  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, documents_url: "", announcement: "", quorum_pct: 25 };
   const regs: Record<string, Reg> = {};
   const now = new Date().toISOString();
   HOLDERS.slice(0, 8).forEach((h, i) => { regs[h.account_id] = { type: i === 2 ? "proxy" : "person", channel: "onsite", vote_mode: "self", shares: h.shares, at: now }; });
@@ -149,8 +149,11 @@ export async function mockApi(path: string, method: string, body: Record<string,
       case "summary": return summary();
       case "agendas": return s.agendas;
       case "holders": {
+        if (seg[1] && seg[1] !== "search") { const h = hold(seg[1]); return h ? [holderItem(h)] : []; }
         const t = (q.get("q") ?? "").trim().toLowerCase();
-        return HOLDERS.filter((h) => !t || h.name.toLowerCase().includes(t) || h.account_id.includes(t) || h.id_card.includes(t)).slice(0, 20).map(holderItem);
+        const st = q.get("status");
+        return HOLDERS.filter((h) => !t || h.name.toLowerCase().includes(t) || h.account_id.includes(t) || h.id_card.includes(t))
+          .map(holderItem).filter((h) => !st || h.status === st).slice(0, 20);
       }
       case "registration": {
         if (seg[1] === "groups" && seg[2]) return s.groups.find((g) => String(g.id) === seg[2])?.members ?? [];
@@ -176,6 +179,12 @@ export async function mockApi(path: string, method: string, body: Record<string,
         if (seg[1] === "audit") { const items = audit(); return { total: items.length, items: items.slice(0, Number(q.get("limit") ?? 50)) }; }
         if (seg[1] === "meetings" && seg[3] === "summary") return summary();
         if (seg[1] === "meetings") return [s.meeting, { ...s.meeting, id: 0, year: "2568", closed_at: new Date().toISOString() }];
+        if (seg[1] === "holders") {
+          const t = (q.get("q") ?? "").trim().toLowerCase();
+          const all = HOLDERS.filter((h) => !t || h.name.toLowerCase().includes(t) || h.account_id.includes(t));
+          const off = Number(q.get("offset") ?? 0), lim = Number(q.get("limit") ?? 50);
+          return { total: all.length, items: all.slice(off, off + lim).map((h) => ({ account_id: h.account_id, title: "", first: h.name, last: "", shares: h.shares, masked_id: `xxxxxxxxx${h.id_card.slice(-4)}`, phone: h.phone, email: `holder${h.account_id}@example.com`, security: "TRU", registered: !!s.regs[h.account_id] })) };
+        }
         if (seg[1] === "attendees") {
           return Object.entries(s.regs).map(([id, r], i): AttendeeRow => {
             const h = hold(id)!;
@@ -200,6 +209,7 @@ export async function mockApi(path: string, method: string, body: Record<string,
   switch (seg[0]) {
     case "auth": return { token: "mock", role: String(b.username).toLowerCase().includes("admin") ? "admin" : "staff", name: "ผู้ใช้ตัวอย่าง", username: String(b.username || "demo") };
     case "online": {
+      if (seg[1] === "logout") return out({});
       if (seg[1] === "register") return { sent: true, channel: "sms", expires_in: 300, masked_to: "08X-XXX-1234", dev_otp: "123456" };
       if (seg[1] === "verify-otp") {
         const acc = String(b.account_id || "1009");
@@ -236,12 +246,19 @@ export async function mockApi(path: string, method: string, body: Record<string,
     }
     case "late": s.late[String(b.account_id)] = new Date().toISOString(); return out({});
     case "novote": {
-      if (method === "POST") { const h = hold(String(b.account_id)); s.novote.push({ id: ++s.seq, term_id: String(b.term_id), account_id: String(b.account_id), name: h?.name ?? "", shares: h?.shares ?? 0 }); }
+      if (method === "POST") {
+        const acc = String(b.account_id), term = String(b.term_id);
+        if (s.votes[term]?.[acc] && !b.force) err(409, "has_votes");
+        delete s.votes[term]?.[acc];
+        const h = hold(acc); s.novote.push({ id: ++s.seq, term_id: String(b.term_id), account_id: String(b.account_id), name: h?.name ?? "", shares: h?.shares ?? 0 });
+      }
       else s.novote = s.novote.filter((n) => String(n.id) !== seg[1]);
       return out({});
     }
     case "vote": {
+      if (method === "DELETE") { delete s.votes[seg[3]]?.[seg[2]]; return out({}); } // /vote/onsite/:acc/:term
       const acc = String(b.account_id), term = String(b.term_id);
+      if (s.votes[term]?.[acc] && !b.overwrite) err(409, "already_voted");
       const h = hold(acc);
       if (!s.regs[acc] && !h) err(404, "ไม่พบผู้ถือหุ้น");
       if (s.novote.some((n) => n.term_id === term && n.account_id === acc)) err(403, "ผู้ถือหุ้นรายนี้ไม่มีสิทธิ์ออกเสียงในวาระนี้");
@@ -264,6 +281,14 @@ export async function mockApi(path: string, method: string, body: Record<string,
         if (method === "POST") s.users.push({ id: ++s.seq, username: String(b.username), fullname: String(b.fullname ?? ""), dept: String(b.dept ?? ""), role: (b.role as UserRow["role"]) ?? "staff", active: true });
         else if (method === "PUT") { const u = s.users.find((x) => String(x.id) === seg[2]); if (u) Object.assign(u, { ...b, password: undefined }); }
         else if (method === "DELETE") s.users = s.users.filter((x) => String(x.id) !== seg[2]);
+        return out({});
+      }
+      if (seg[1] === "holders") {
+        if (seg[2] === "import") {
+          const rows = (b.rows as { account_id?: string }[]) ?? [];
+          const exists = rows.filter((r) => hold(String(r.account_id))).length;
+          return out({ created: rows.length - exists, updated: exists, dry_run: !!b.dry_run });
+        }
         return out({});
       }
       if (seg[1] === "meeting") {

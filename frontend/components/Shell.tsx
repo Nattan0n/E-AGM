@@ -27,9 +27,10 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/agenda", label: "วาระ", icon: "list" },
   { href: "/admin/vote-control", label: "ควบคุมโหวต", icon: "sliders" },
   { href: "/admin/attendees", label: "ผู้เข้าร่วม", icon: "users" },
-  { href: "/admin/users", label: "ผู้ใช้", icon: "users" },
+  { href: "/admin/holders", label: "ผู้ถือหุ้น", icon: "building" },
+  { href: "/admin/users", label: "ผู้ใช้", icon: "user" },
   { href: "/admin/audit", label: "Audit", icon: "shield" },
-  { href: "/admin/export", label: "รายงาน", icon: "upload" },
+  { href: "/admin/export", label: "รายงาน", icon: "download" },
   { href: "/admin/history", label: "ประวัติ", icon: "history" },
   { href: "/admin/settings", label: "ตั้งค่า", icon: "settings" },
 ];

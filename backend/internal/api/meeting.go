@@ -21,18 +21,20 @@ type Meeting struct {
 	RoomOpen      bool       `json:"room_open"`     // online room opened by an admin: holders may see the agendas
 	AdvanceEntry  bool       `json:"advance_entry"` // staff may key onsite votes before an agenda is opened
 	QuorumPct     float64    `json:"quorum_pct"`
+	DocumentsURL  string     `json:"documents_url"` // link to the invitation / meeting documents shown to holders
+	Announcement  string     `json:"announcement"`  // short notice shown to holders in the waiting room
 }
 
 func (m *Meeting) Locked() bool { return m.ClosedAt != nil }
 
-const meetingCols = `id,codemaster,COALESCE(detailmaster,''),COALESCE(datemaster,''),closed_at,online_enabled,advance_entry,room_open,quorum_pct`
+const meetingCols = `id,codemaster,COALESCE(detailmaster,''),COALESCE(datemaster,''),closed_at,online_enabled,advance_entry,room_open,quorum_pct,COALESCE(documents_url,''),COALESCE(announcement,'')`
 
 type scanner interface{ Scan(...any) error }
 
 func scanMeeting(r scanner) (*Meeting, error) {
 	var m Meeting
 	var closed sql.NullTime
-	if err := r.Scan(&m.ID, &m.Year, &m.Detail, &m.Date, &closed, &m.OnlineEnabled, &m.AdvanceEntry, &m.RoomOpen, &m.QuorumPct); err != nil {
+	if err := r.Scan(&m.ID, &m.Year, &m.Detail, &m.Date, &closed, &m.OnlineEnabled, &m.AdvanceEntry, &m.RoomOpen, &m.QuorumPct, &m.DocumentsURL, &m.Announcement); err != nil {
 		return nil, err
 	}
 	if closed.Valid {
@@ -102,6 +104,8 @@ type meetingReq struct {
 	OnlineEnabled *bool   `json:"online_enabled"`
 	AdvanceEntry  *bool   `json:"advance_entry"`
 	QuorumPct     float64 `json:"quorum_pct"`
+	DocumentsURL  *string `json:"documents_url"`
+	Announcement  *string `json:"announcement"`
 }
 
 func (s *Server) updateMeeting(c echo.Context) error {
@@ -130,9 +134,25 @@ func (s *Server) updateMeeting(c echo.Context) error {
 	if r.AdvanceEntry != nil {
 		advance = *r.AdvanceEntry
 	}
+	docs, note := m.DocumentsURL, m.Announcement
+	if r.DocumentsURL != nil {
+		docs = strings.TrimSpace(*r.DocumentsURL)
+		if docs != "" && !strings.HasPrefix(docs, "https://") && !strings.HasPrefix(docs, "http://") {
+			return bad("ลิงก์เอกสารต้องขึ้นต้นด้วย https:// หรือ http://")
+		}
+		if len(docs) > 500 {
+			return bad("ลิงก์เอกสารยาวเกินไป")
+		}
+	}
+	if r.Announcement != nil {
+		note = strings.TrimSpace(*r.Announcement)
+		if len([]rune(note)) > 500 {
+			return bad("ประกาศยาวเกิน 500 ตัวอักษร")
+		}
+	}
 	if _, err := s.DB.ExecContext(c.Request().Context(),
-		`UPDATE master SET detailmaster=?,datemaster=?,online_enabled=?,advance_entry=?,quorum_pct=? WHERE id=?`,
-		r.Detail, r.Date, online, advance, r.QuorumPct, m.ID); err != nil {
+		`UPDATE master SET detailmaster=?,datemaster=?,online_enabled=?,advance_entry=?,quorum_pct=?,documents_url=?,announcement=? WHERE id=?`,
+		r.Detail, r.Date, online, advance, r.QuorumPct, docs, note, m.ID); err != nil {
 		return err
 	}
 	s.audit(c, "", "meeting_update", r)

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getSession } from "@/lib/api";
+import { api, clearSession, getSession } from "@/lib/api";
 import { useApi, useHolderGuard } from "@/lib/hooks";
 
 /** Holder-authenticated polling fetch; redirects to /online when the API invalidates the session (401). */
@@ -10,9 +10,23 @@ export function useHolderApi<T>(path: string, pollMs = 0) {
   const router = useRouter();
   const r = useApi<T>(ok ? path : null, "holder", pollMs);
   useEffect(() => {
-    if (ok && r.error && !getSession("holder")) router.replace("/online");
+    if (ok && r.error && !getSession("holder")) { setNotice("เซสชันหมดอายุหรือถูกยกเลิก กรุณายืนยันตัวตนและ OTP ใหม่อีกครั้ง"); router.replace("/online"); }
   }, [ok, r.error, router]);
   return { ...r, ready: ok };
+}
+
+const NOTICE_KEY = "eagm_online_notice";
+/** One-shot message shown on the register page after the user was sent back there (e.g. expired session). */
+export function setNotice(msg: string) { try { sessionStorage.setItem(NOTICE_KEY, msg); } catch { /* ignore */ } }
+export function takeNotice(): string {
+  try { const m = sessionStorage.getItem(NOTICE_KEY) ?? ""; sessionStorage.removeItem(NOTICE_KEY); return m; } catch { return ""; }
+}
+
+/** Ends the holder session on the server (so the token stops working) and locally, then returns to the start. */
+export async function holderLogout(go: (path: string) => void) {
+  try { await api("/api/online/logout", { method: "POST", session: "holder" }); } catch { /* the local session is cleared either way */ }
+  clearSession("holder");
+  go("/");
 }
 
 export interface Pending {

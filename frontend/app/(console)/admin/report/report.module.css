@@ -1,0 +1,29 @@
+.sheet { background: #fff; color: #0f172a; border-radius: 16px; padding: 28px 32px; box-shadow: 0 6px 24px rgba(15, 35, 100, .08); max-width: 980px; margin: 0 auto; }
+.sheet h1 { font-size: 20px; margin: 0 0 2px; }
+.sub { color: #475569; font-size: 13px; margin: 0 0 16px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.kpi { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; }
+.kpi b { display: block; font-size: 20px; }
+.kpi span { font-size: 12px; color: #475569; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th, .tbl td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; vertical-align: top; }
+.tbl th:nth-child(1), .tbl td:nth-child(1), .tbl th:nth-child(2), .tbl td:nth-child(2) { text-align: left; }
+.tbl th { background: #f1f5f9; }
+.tbl small { display: block; color: #64748b; }
+.pass { color: #166534; font-weight: 700; }
+.fail { color: #b91c1c; font-weight: 700; }
+.foot { margin-top: 16px; font-size: 12px; color: #64748b; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sign { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; margin-top: 48px; font-size: 13px; text-align: center; }
+.sign div { border-top: 1px solid #0f172a; padding-top: 4px; }
+@media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } .sheet { padding: 16px; } .tbl { display: block; overflow-x: auto; } }
+@page { size: A4 portrait; margin: 12mm; }
+@media print {
+  :global(body.print-report) { background: #fff !important; }
+  :global(body.print-report) :global(#app-root) { opacity: 1 !important; }
+  :global(body.print-report) :global(#app-root) > div { display: block !important; }
+  :global(body.print-report) :global(aside), :global(body.print-report) :global(header[class*="top"]), :global(body.print-report) :global(nav), :global(body.print-report) .noprint { display: none !important; }
+  :global(body.print-report) :global(main) { padding: 0 !important; margin: 0 !important; max-width: none !important; width: 100% !important; }
+  :global(body.print-report) :global(main) > * { animation: none !important; }
+  .sheet { box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
+  .tbl th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

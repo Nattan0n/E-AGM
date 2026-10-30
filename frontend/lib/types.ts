@@ -4,7 +4,7 @@ export type Choice = "agree" | "disagree" | "abstain" | "spoiled";
 export type VoteType = "ordinary" | "special" | "unanimous" | "info";
 export type AgendaStatus = "pending" | "open" | "closed";
 
-export interface Meeting { id: number; year: string; detail: string; date: string; closed_at: string | null; online_enabled: boolean; advance_entry: boolean; room_open: boolean; quorum_pct: number }
+export interface Meeting { id: number; year: string; detail: string; date: string; closed_at: string | null; online_enabled: boolean; advance_entry: boolean; room_open: boolean; quorum_pct: number; documents_url: string; announcement: string }
 export interface Stats {
   holders: number; total_shares: number; onsite_count: number; onsite_shares: number;
   online_count: number; online_shares: number; late_count: number; late_shares: number;
@@ -40,3 +40,6 @@ export interface Receipt {
   reference: string; name: string; account_id: string; shares: number; ip: string; registered_at: string; last_vote_at: string;
   votes: { term_id: string; name: string; choice: Choice; auto: boolean }[];
 }
+
+export interface HolderAdminRow { account_id: string; title: string; first: string; last: string; shares: number; masked_id: string; phone: string; email: string; security: string; registered: boolean }
+export interface HolderAdminList { total: number; items: HolderAdminRow[] }

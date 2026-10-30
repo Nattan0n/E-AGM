@@ -121,6 +121,12 @@ func (s *Server) Routes(e *echo.Echo) {
 	ad.POST("/meeting", s.createMeeting)
 	ad.POST("/meeting/close", s.closeMeeting)
 	ad.GET("/export/summary.csv", s.exportSummary)
+	ad.GET("/export/attendees.csv", s.exportAttendees)
+	ad.GET("/export/audit.csv", s.exportAudit)
+	ad.GET("/holders", s.listHoldersAdmin)
+	ad.POST("/holders", s.createHolder)
+	ad.PUT("/holders/:acc", s.updateHolder)
+	ad.POST("/holders/import", s.importHolders)
 
 	// ---- online shareholder ----
 	otpLimit := rateLimit(20, 10)
