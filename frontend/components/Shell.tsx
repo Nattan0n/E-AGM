@@ -100,7 +100,8 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
     return () => clearTimeout(t);
   }, [fanOpen]);
   // Next keeps previous pages mounted (hidden) with their state: close the menu on route change and whenever this page is hidden.
-  useEffect(() => { setFanOpen(false); return () => setFanOpen(false); }, [path]);
+  // fanMounted must be reset too: hiding the page clears the 320ms unmount timer above, which would leave the closing menu stuck mounted and replaying its animation when the page is shown again.
+  useEffect(() => { setFanOpen(false); return () => { setFanOpen(false); setFanMounted(false); }; }, [path]);
   useEffect(() => {
     if (!fanOpen) return;
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") setFanOpen(false); };
