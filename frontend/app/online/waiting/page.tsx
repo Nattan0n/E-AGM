@@ -206,6 +206,7 @@ function MobileFooter({ ag }: { ag: AgState }) {
         ? <Link href="/online/vote" className={`btn btn-primary ${s.cta}`}>เข้าสู่การลงคะแนน →</Link>
         : <button type="button" className={`btn btn-primary ${s.cta}`} disabled>{roomClosed ? "รอเปิดห้องประชุม" : staffMode ? "เจ้าหน้าที่จะลงคะแนนให้ท่าน" : "รอเปิดวาระลงคะแนน"}</button>}
       <Link href="/online/confirm" className={s.linkbtn}>ดูใบยืนยันการลงคะแนน</Link>
+      {meNow?.meeting.results_published && <Link href="/online/results" className={s.linkbtn}>ดูผลมติรายวาระ</Link>}
     </>
   );
 }

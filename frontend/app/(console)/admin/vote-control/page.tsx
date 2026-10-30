@@ -3,6 +3,7 @@ import { Icon } from "@/components/brand/Icon";
 import { useState } from "react";
 import { api, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
+import { TallyPanel } from "@/components/TallyPanel";
 import { AdModal as Modal } from "@/components/admin/AdModal";
 import type { Summary, TermResult } from "@/lib/types";
 import { AdminFrame, ClosedBanner, Live, PageHead, ResultBar, ResultChip, State, Switch, useToastAction, VOTE_TYPE_LABEL } from "@/components/admin/common";
@@ -57,6 +58,7 @@ function Body() {
                     <div className="y"><b>{t.abstain_pct.toFixed(1)}%</b><span>งดออกเสียง</span></div>
                   </div>
                   <ResultBar t={t} />
+                  <TallyPanel t={t} />
                   <div className="adm-vc-stats">
                     <span>ลงคะแนนแล้ว <b>{fmt(t.voted_count)}</b> ราย</span>
                     {left !== null && <span>เหลือ <b>{fmt(left)}</b> ราย</span>}

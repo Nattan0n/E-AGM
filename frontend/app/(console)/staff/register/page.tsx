@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, errMsg, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
-import type { GroupItem, HolderItem, Stats } from "@/lib/types";
+import type { Agenda, GroupItem, HolderItem, Stats } from "@/lib/types";
 import { Avatar, Ctx, fetchHolder, HolderPicker, StaffPage, StatusBadge, styles } from "@/components/staff/common";
 
 export default function RegisterPage() {
@@ -30,6 +30,14 @@ function Register(c: Ctx) {
       {mode === "individual" ? <Individual {...c} /> : <Group {...c} />}
     </>
   );
+}
+
+/** Registering after an agenda has closed: the holder takes no part in that agenda (its result is final). */
+function ClosedNote() {
+  const { data } = useApi<Agenda[]>("/api/agendas", "staff", 15000);
+  const closed = (data ?? []).filter((a) => a.status === "closed" && a.vote_type !== "info");
+  if (closed.length === 0) return null;
+  return <p className={styles.errText}>วาระที่ปิดโหวตแล้ว (วาระ {closed.map((a) => a.term_id).join(", ")}) — ผู้ถือหุ้นที่ลงทะเบียนตอนนี้จะไม่มีสิทธิ์ลงคะแนนในวาระเหล่านั้น</p>;
 }
 
 const pct = (n: number, total?: number) => (total ? `${((n / total) * 100).toFixed(2)}%` : "-");
@@ -129,6 +137,7 @@ function Individual({ canWrite, toast }: Ctx) {
           </div>
         </div>
       </div>
+      <ClosedNote />
       {!canWrite && <p className={styles.muted}>ไม่สามารถบันทึกได้ในโหมดอ่านอย่างเดียว</p>}
       <div className={styles.actionBar}>
         <button className={styles.btn} onClick={() => setH(null)} disabled={busy}>เลือกใหม่</button>
@@ -214,6 +223,7 @@ function Group({ canWrite, toast }: Ctx) {
         </div>
       </div>
 
+      <ClosedNote />
       <div className={styles.actionBar}>
         <button className={styles.btn} onClick={() => { setName(""); setMembers([]); }} disabled={busy || (!name && members.length === 0)}>ล้างข้อมูล</button>
         <button className={`${styles.btn} ${styles.bPri}`} onClick={submit} disabled={!canWrite || !valid || busy}>{busy ? "กำลังบันทึก..." : <><Icon name="check" size={16} className="ico-inl" />ลงทะเบียนกลุ่ม</>}</button>

@@ -1,19 +1,17 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, CHOICE_LABEL, errMsg } from "@/lib/api";
-import { Choice, OnlineAgenda } from "@/lib/types";
+import { api, CHOICE_LABEL, errMsg, fmt } from "@/lib/api";
+import { Choice, HolderResults, OnlineAgenda } from "@/lib/types";
+import { TallyPanel } from "@/components/TallyPanel";
 import { Modal } from "@/components/Modal";
 import { OnlineShell } from "@/components/online/OnlineShell";
-import { refreshMe, useHolderApi, useMe, holderLogout } from "@/components/online/hooks";
+import { refreshMe, useHolderApi, useMe, holderLogout, type Me } from "@/components/online/hooks";
 import s from "@/components/online/online.module.css";
 
 const CHOICES: Choice[] = ["agree", "disagree", "abstain", "spoiled"];
-const parentOf = (id: string) => id.split(".")[0];
-
-interface Group { parent: string; head?: OnlineAgenda; subs: OnlineAgenda[] }
 
 /** Holders who chose "staff votes for me" cannot vote here; they may switch back until the first online vote. */
 function Gate({ children }: { children: ReactNode }) {
@@ -41,6 +39,8 @@ function Gate({ children }: { children: ReactNode }) {
 }
 
 export default function OnlineVote() {
+  const me = useHolderApi<Me>("/api/online/me").data; // this component renders the shell, so the shell's context is not available here
+  const results = useHolderApi<HolderResults>("/api/online/results", 5000).data;
   const { data, error, loading, reload } = useHolderApi<OnlineAgenda[]>("/api/online/agendas", 4000);
   const [target, setTarget] = useState<{ a: OnlineAgenda; choice: Choice } | null>(null);
   const router = useRouter();
@@ -48,17 +48,6 @@ export default function OnlineVote() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [voteErr, setVoteErr] = useState("");
-
-  const groups = useMemo(() => {
-    const m = new Map<string, Group>();
-    for (const a of data ?? []) {
-      const p = parentOf(a.term_id);
-      const g = m.get(p) ?? { parent: p, subs: [] };
-      if (a.term_id === p) g.head = a; else g.subs.push(a);
-      m.set(p, g);
-    }
-    return [...m.values()];
-  }, [data]);
 
   const confirm = async () => {
     if (!target) return;
@@ -79,37 +68,31 @@ export default function OnlineVote() {
   const votedN = votable.filter((a) => a.choice !== "").length;
   const pct = votable.length ? Math.round((votedN / votable.length) * 100) : 0;
 
-  const card = (a: OnlineAgenda, sub: boolean) => {
+  const all = data ?? [];
+  const [pick, setPick] = useState("");
+  const current = all.find((x) => x.term_id === pick)
+    ?? all.find((x) => x.status === "open" && x.vote_type !== "info" && !x.novote && x.choice === "")
+    ?? all.find((x) => x.status === "open") ?? all[0];
+
+  const bigCls: Record<Choice, string> = { agree: s.bcAgree, disagree: s.bcDisagree, abstain: s.bcAbstain, spoiled: s.bcSpoiled };
+  const bigIcon: Record<Choice, "thumbUp" | "thumbDown" | "hand" | "ballotX"> = { agree: "thumbUp", disagree: "thumbDown", abstain: "hand", spoiled: "ballotX" };
+  const panel = (a: OnlineAgenda) => {
     const locked = a.choice !== "";
     const canVote = a.status === "open" && a.vote_type !== "info" && !a.novote;
-    let body: ReactNode;
-    if (a.vote_type === "info") body = <div className={s.note}>รับทราบ - ไม่ต้องลงคะแนน</div>;
-    else if (a.novote) body = <div className={s.note}>ไม่มีสิทธิ์ออกเสียง</div>;
-    else if (locked || canVote) body = (
+    if (a.vote_type === "info") return <div className={s.note}>รับทราบ - ไม่ต้องลงคะแนน</div>;
+    if (a.novote) return <div className={s.note}>ไม่มีสิทธิ์ออกเสียง</div>;
+    if (!locked && !canVote) return <div className={s.note}>{a.status === "pending" ? "ยังไม่เปิดลงคะแนน" : "ปิดแล้ว - นับเป็นเห็นด้วย"}</div>;
+    return (
       <>
-        <div className={`${s.choices} ${locked ? s.lockedset : ""}`} role="group" aria-label={`ลงคะแนนวาระ ${a.term_id}`}>
+        <div className={s.bigs} role="group" aria-label={`ลงคะแนนวาระ ${a.term_id}`}>
           {CHOICES.map((c) => (
-            <button key={c} type="button" className={`${s.ch} ${s[c]} ${a.choice === c ? s.sel : ""}`} disabled={busy || locked}
-              aria-pressed={a.choice === c} onClick={() => setTarget({ a, choice: c })}>{a.choice === c ? <Icon name="check" size={14} className="ico-inl" /> : null}{CHOICE_LABEL[c]}</button>
+            <button key={c} type="button" className={`${s.bc} ${bigCls[c]} ${a.choice === c ? s.picked : ""}`} disabled={busy || locked} aria-pressed={a.choice === c} onClick={() => setTarget({ a, choice: c })}>
+              <Icon name={bigIcon[c]} size={28} />{CHOICE_LABEL[c]}
+            </button>
           ))}
         </div>
-        {locked && <div className={s.lockednote}><Icon name="lock" size={13} className="ico-inl" />ลงคะแนนแล้ว: <b>{CHOICE_LABEL[a.choice]}</b> (เปลี่ยนแปลงไม่ได้)</div>}
+        {locked && <div className={s.lockednote} style={{ marginTop: 12 }}><Icon name="lock" size={13} className="ico-inl" />ลงคะแนนแล้ว: <b>{CHOICE_LABEL[a.choice]}</b> (เปลี่ยนแปลงไม่ได้)</div>}
       </>
-    );
-    else if (a.status === "pending") body = <div className={s.note}>ยังไม่เปิดลงคะแนน</div>;
-    else body = <div className={s.note}>ปิดแล้ว - นับเป็นเห็นด้วย</div>;
-    const badge = locked ? <span className={`${s.st} ${s.stDoneV}`}>ลงคะแนนแล้ว</span>
-      : canVote ? <span className={`${s.st} ${s.stOpen}`}>เปิดลงคะแนน</span>
-      : a.status === "closed" ? <span className={`${s.st} ${s.stDone}`}>ปิดแล้ว</span>
-      : <span className={`${s.st} ${s.stWait}`}>{a.vote_type === "info" ? "รับทราบ" : "ยังไม่เปิด"}</span>;
-    return (
-      <div key={a.term_id} className={`${s.vcard} ${canVote && !locked ? s.vopen : ""} ${sub ? s.vsub : ""}`}>
-        <div className={s.vhead}>
-          <div className={s.vtitle}><small>วาระที่ {a.term_id}</small>{a.name}</div>
-          {badge}
-        </div>
-        {body}
-      </div>
     );
   };
 
@@ -136,20 +119,22 @@ export default function OnlineVote() {
         <div className={s.track}><i style={{ width: `${pct}%` }} /></div>
       </div>
       <div className={s.info}><strong>การลงคะแนนเมื่อยืนยันแล้วไม่สามารถเปลี่ยนแปลงได้</strong>วาระที่ไม่ได้ลงคะแนนเมื่อปิดวาระ ระบบจะนับเป็นเห็นด้วย</div>
-      <div className={s.vlist}>
-        {groups.map((g) => (
-          <div key={g.parent} className={s.vgroup}>
-            {g.head && card(g.head, false)}
-            {g.subs.length > 0 && (
-              <div className={s.vsubs}>
-                {!g.head && <div className={s.group}>วาระที่ {g.parent}</div>}
-                {g.subs.map((a) => card(a, true))}
-              </div>
-            )}
+      {all.length > 0 && current && (
+        <div className={s.cardc}>
+          <div className={s.vme}><span className="muted">{me?.name}</span><span>สิทธิ์ลงคะแนน <b>{fmt(me?.shares ?? 0)}</b> หุ้น</span></div>
+          <div className={s.vtabs} role="tablist" aria-label="วาระ" style={{ marginTop: 12 }}>
+            {all.map((x) => (
+              <button key={x.term_id} role="tab" aria-selected={x.term_id === current.term_id} className={`${s.vtab} ${x.term_id === current.term_id ? s.on : ""}`} onClick={() => setPick(x.term_id)}>
+                {x.status === "open" && x.vote_type !== "info" && x.choice === "" && !x.novote && <i className={s.dot} aria-hidden />}วาระ {x.term_id}{x.choice !== "" && <Icon name="check" size={13} className={`ico-inl ${s.done}`} />}
+              </button>
+            ))}
           </div>
-        ))}
-        {data && data.length === 0 && <div className="muted">ยังไม่มีวาระ</div>}
-      </div>
+          <div className={s.vsel}><small>วาระที่ {current.term_id}</small><b>{current.name}</b></div>
+          {panel(current)}
+          {(() => { const r = results?.published ? results.terms.find((x) => x.term_id === current.term_id) : undefined; return r && r.vote_type !== "info" ? <TallyPanel t={r} /> : null; })()}
+        </div>
+      )}
+      {data && data.length === 0 && <div className="muted">ยังไม่มีวาระ</div>}
 
       {target && (
         <Modal title="ยืนยันการลงคะแนน" onClose={() => !busy && setTarget(null)}

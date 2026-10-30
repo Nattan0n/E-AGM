@@ -20,6 +20,8 @@ function Body() {
     return () => document.body.classList.remove("print-report");
   }, []);
   const m = sum.data?.meeting, st = sum.data?.stats;
+  // columns that need figures the backend may not send yet: shown only when present
+  const hasRight = !!sum.data?.terms.some((t) => t.novote_shares !== undefined);
   const now = new Date().toLocaleString("th-TH");
 
   return (
@@ -47,8 +49,20 @@ function Body() {
               <div className={styles.kpi}><b>{st.quorum_pct.toFixed(2)}%</b><span>องค์ประชุม (เกณฑ์ {st.quorum_required_pct}%) — {st.quorum_reached ? "ครบองค์ประชุม" : "ไม่ครบองค์ประชุม"}</span></div>
               <div className={styles.kpi}><b>{sum.data.terms.length}</b><span>วาระทั้งหมด</span></div>
             </div>
+            {st.self_count !== undefined && (
+              <table className={`${styles.tbl} ${styles.att}`} style={{ marginBottom: 18, maxWidth: 520 }}>
+                <thead><tr><th>การเข้าร่วม</th><th>ราย</th><th>หุ้น</th></tr></thead>
+                <tbody>
+                  <tr><td>มาด้วยตนเอง</td><td>{fmt(st.self_count)}</td><td>{fmt(st.self_shares ?? 0)}</td></tr>
+                  <tr><td>มอบฉันทะ</td><td>{fmt(st.proxy_count ?? 0)}</td><td>{fmt(st.proxy_shares ?? 0)}</td></tr>
+                  {(st.group_count ?? 0) > 0 && <tr><td>กลุ่ม / นิติบุคคล</td><td>{fmt(st.group_count ?? 0)}</td><td>{fmt(st.group_shares ?? 0)}</td></tr>}
+                  <tr><td>ออนไลน์</td><td>{fmt(st.online_count)}</td><td>{fmt(st.online_shares)}</td></tr>
+                  <tr><td><b>รวม</b></td><td><b>{fmt(st.onsite_count + st.online_count)}</b></td><td><b>{fmt(st.onsite_shares + st.online_shares)}</b></td></tr>
+                </tbody>
+              </table>
+            )}
             <table className={styles.tbl}>
-              <thead><tr><th>วาระ</th><th>เรื่อง</th><th>เห็นด้วย</th><th>ไม่เห็นด้วย</th><th>งดออกเสียง</th><th>บัตรเสีย</th><th>มติ</th></tr></thead>
+              <thead><tr><th>วาระ</th><th>เรื่อง</th><th>เห็นด้วย</th><th>ไม่เห็นด้วย</th><th>งดออกเสียง</th><th>บัตรเสีย</th>{hasRight && <><th>มีสิทธิ์ออกเสียง (หุ้น)</th><th>ไม่มีสิทธิ์ (หุ้น)</th></>}<th>มติ</th></tr></thead>
               <tbody>
                 {sum.data.terms.map((t) => (
                   <tr key={t.id}>
@@ -62,6 +76,7 @@ function Body() {
                         <td>{t.abstain_pct.toFixed(2)}%<small>{fmt(t.total.abstain)}</small></td>
                         <td>{t.spoiled_pct.toFixed(2)}%<small>{fmt(t.total.spoiled)}</small></td>
                       </>}
+                    {hasRight && (t.vote_type === "info" || t.status === "pending" ? <><td>-</td><td>-</td></> : <><td>{fmt(t.eligible)}</td><td>{fmt(t.novote_shares ?? 0)}</td></>)}
                     <td className={t.result === "pass" ? styles.pass : t.result === "fail" ? styles.fail : ""}>{RESULT_LABEL[t.result]}</td>
                   </tr>
                 ))}

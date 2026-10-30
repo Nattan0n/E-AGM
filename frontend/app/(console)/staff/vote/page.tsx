@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { api, CHOICE_LABEL, errMsg, fmt } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import type { Agenda, Choice, HolderItem, Meeting, Summary, VoteRow } from "@/lib/types";
+import { TallyPanel } from "@/components/TallyPanel";
 import { Ctx, fetchHolder, HolderCard, HolderPicker, StaffPage, StModal, styles } from "@/components/staff/common";
 
 export default function VotePage() {
@@ -119,6 +120,7 @@ function Vote({ canWrite, toast }: Ctx) {
               </div>
             </>
           )}
+          {tr && agenda.vote_type !== "info" && <TallyPanel t={tr} />}
           {advance && agenda.status === "pending" && votable && <p className={styles.errText} style={{ marginTop: 6 }}>โหมดเตรียมงาน: คีย์คะแนนล่วงหน้าได้ (วาระยังไม่เปิดให้ผู้ถือหุ้นออนไลน์ลงคะแนน)</p>}
           {!votable && <p className={styles.muted} style={{ marginTop: 6 }}>{agenda.vote_type === "info" ? "วาระนี้เป็นการรับทราบ ไม่มีการลงคะแนน" : "วาระนี้ไม่ได้เปิดรับการลงคะแนน"}</p>}
         </div>

@@ -14,6 +14,8 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
   const [quorum, setQuorum] = useState(String(m.quorum_pct));
   const [online, setOnline] = useState(m.online_enabled);
   const [advance, setAdvance] = useState(m.advance_entry);
+  const [published, setPublished] = useState(!!m.results_published);
+  const canPublish = typeof m.results_published === "boolean"; // hidden while the backend does not know the field
   const [docs, setDocs] = useState(m.documents_url ?? "");
   const [note, setNote] = useState(m.announcement ?? "");
   const closed = !!m.closed_at;
@@ -23,7 +25,7 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!qOk) return;
-    const ok = await run(() => api("/api/admin/meeting", { method: "PUT", body: { detail, date, quorum_pct: q, online_enabled: online, advance_entry: advance, documents_url: docs, announcement: note } }), "บันทึกการตั้งค่าแล้ว");
+    const ok = await run(() => api("/api/admin/meeting", { method: "PUT", body: { detail, date, quorum_pct: q, online_enabled: online, advance_entry: advance, documents_url: docs, announcement: note, ...(canPublish ? { results_published: published } : {}) } }), "บันทึกการตั้งค่าแล้ว");
     if (ok) onDone();
   };
 
@@ -50,6 +52,14 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
         <label className="adm-check">
           <input type="checkbox" disabled={closed} checked={advance} onChange={(e) => setAdvance(e.target.checked)} /> โหมดเตรียมงาน: ให้เจ้าหน้าที่คีย์คะแนนล่วงหน้าได้ทุกวาระ แม้วาระยังไม่เปิดโหวต
         </label>
+        {canPublish && (
+          <>
+            <label className="adm-check">
+              <input type="checkbox" disabled={closed} checked={published} onChange={(e) => setPublished(e.target.checked)} /> เผยแพร่ผลมติรายวาระให้ผู้ถือหุ้นเห็น
+            </label>
+            <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>แสดงที่หน้า &quot;ผลมติ&quot; ของผู้ถือหุ้นออนไลน์ เฉพาะวาระที่ปิดโหวตแล้ว และเฉพาะยอดรวม (ไม่เห็นว่าใครลงคะแนนอย่างไร) — เปิดเมื่อประธานประกาศผลแล้ว</p>
+          </>
+        )}
         <button type="submit" className="btn btn-primary" disabled={closed || busy || !qOk}>{busy ? "กำลังบันทึก..." : "บันทึก"}</button>
       </div>
       {node}

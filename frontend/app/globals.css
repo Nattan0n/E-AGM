@@ -503,3 +503,20 @@ main > [data-wrap][data-wrap] { animation: none; }
 .sx-opt.dis { opacity: .45; cursor: not-allowed; }
 @keyframes sxIn { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .sx-menu { animation: none; } .sx-chev { transition: none; } }
+
+/* running tally of an agenda (components/TallyPanel.tsx) */
+.tally { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.tally-top { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; font-size: 13px; }
+.tally-top div { display: flex; justify-content: space-between; gap: 8px; }
+.tally-top span { color: var(--ink-muted); }
+.tally-top b { font-variant-numeric: tabular-nums; }
+.tally-top b.r { color: #dc2626; }
+.tally-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tally-grid > div { text-align: center; border: 1px solid var(--border); border-radius: 12px; padding: 8px 4px; background: #fff; }
+.tally-grid span { display: block; font-size: 11px; color: var(--ink-muted); }
+.tally-grid b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+.tally-grid small { font-size: 10px; color: var(--ink-muted); }
+.tally-grid em { display: block; font-style: normal; font-size: 12px; font-weight: 600; }
+.tally-grid .g b, .tally-grid .g em { color: #16a34a; } .tally-grid .r b, .tally-grid .r em { color: #dc2626; }
+.tally-grid .y b, .tally-grid .y em { color: #d97706; } .tally-grid .n b, .tally-grid .n em { color: #64748b; }
+@media (max-width: 520px) { .tally-top { grid-template-columns: 1fr; } .tally-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

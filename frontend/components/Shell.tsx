@@ -21,6 +21,7 @@ export const STAFF_NAV: NavItem[] = [
   { href: "/staff/late", label: "มาสาย", icon: "clock" },
   { href: "/staff/novote", label: "ไม่มีสิทธิ์", icon: "ban" },
   { href: "/staff/summary", label: "สรุปผล", icon: "chart" },
+  { href: "/staff/roll-call", label: "ผลรายคน", icon: "list" },
 ];
 export const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "dashboard" },

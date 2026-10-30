@@ -1,7 +1,7 @@
 // Demo mode (NEXT_PUBLIC_MOCK=1): answers /api/* calls from in-memory data so the UI can be tried without the Go backend.
 import type {
-  Agenda, AttendeeRow, AuditRow, Choice, GroupItem, GroupMember, HolderItem, LateRow, Meeting, NovoteRow, OnlineAgenda, OnlineRegRow,
-  Receipt, Stats, Summary, Tally, TermResult, UserRow, VoteRow,
+  Agenda, AttendeeRow, AuditRow, Choice, GroupItem, GroupMember, HolderItem, HolderResultRow, HolderResults, LateRow, Meeting, NovoteRow, OnlineAgenda, OnlineRegRow,
+  Receipt, RollRow, Stats, Summary, Tally, TermResult, UserRow, VoteRow,
 } from "./types";
 
 export const MOCK = process.env.NEXT_PUBLIC_MOCK === "1";
@@ -35,7 +35,7 @@ function seed(): State {
     mk(5, "5", "พิจารณาเลือกตั้งกรรมการแทนกรรมการที่ออกตามวาระ", "pending", "ordinary"),
     mk(6, "6", "พิจารณาแก้ไขเพิ่มเติมข้อบังคับของบริษัท", "pending", "special"),
   ];
-  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, documents_url: "", announcement: "", quorum_pct: 25 };
+  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, documents_url: "", announcement: "", quorum_pct: 25, results_published: false };
   const regs: Record<string, Reg> = {};
   const now = new Date().toISOString();
   HOLDERS.slice(0, 8).forEach((h, i) => { regs[h.account_id] = { type: i === 2 ? "proxy" : "person", channel: "onsite", vote_mode: "self", shares: h.shares, at: now }; });
@@ -83,10 +83,14 @@ function stats(): Stats {
   const total = HOLDERS.reduce((a, h) => a + h.shares, 0);
   const onsite_shares = on.reduce((a, [, r]) => a + r.shares, 0), online_shares = onl.reduce((a, [, r]) => a + r.shares, 0);
   const late_ids = Object.keys(s.late);
+  const byType = (t: Reg["type"]) => on.filter(([, r]) => r.type === t);
+  const sumShares = (l: [string, Reg][]) => l.reduce((a, [, r]) => a + r.shares, 0);
   const pct = total ? ((onsite_shares + online_shares) / total) * 100 : 0;
   return {
     holders: HOLDERS.length, total_shares: total, onsite_count: on.length, onsite_shares, online_count: onl.length, online_shares,
     late_count: late_ids.length, late_shares: late_ids.reduce((a, id) => a + (s.regs[id]?.shares ?? 0), 0),
+    self_count: byType("person").length, self_shares: sumShares(byType("person")), proxy_count: byType("proxy").length, proxy_shares: sumShares(byType("proxy")),
+    group_count: byType("group").length, group_shares: sumShares(byType("group")),
     quorum_pct: Math.round(pct * 100) / 100, quorum_required_pct: s.meeting.quorum_pct, quorum_reached: pct >= s.meeting.quorum_pct,
   };
 }
@@ -98,16 +102,20 @@ function termResult(a: Agenda): TermResult {
   const onsite = t("onsite"), online = t("online"), total = sum([onsite, online]);
   const all = total.agree + total.disagree + total.abstain + total.spoiled;
   const p = (n: number) => (all ? Math.round((n / all) * 10000) / 100 : 0);
-  const denom = total.agree + total.disagree + (a.vote_type === "special" ? total.abstain : 0);
-  const need = a.vote_type === "special" ? 2 / 3 : a.vote_type === "unanimous" ? 1 : 0.5;
-  const result: TermResult["result"] = a.vote_type === "info" ? "info" : a.status !== "closed" ? (a.status === "open" ? "in_progress" : "pending") : denom && total.agree / denom > need - 1e-9 && total.agree / denom >= need ? "pass" : "fail";
+  // same rules as the backend (summary.go decide): ordinary agree > 1/2 of agree+disagree; special agree >= 3/4 of agree+disagree+abstain; unanimous none against / abstaining
+  const passes = a.vote_type === "special" ? (() => { const base = total.agree + total.disagree + total.abstain; return base > 0 && total.agree * 4 >= base * 3; })()
+    : a.vote_type === "unanimous" ? total.agree > 0 && total.disagree === 0 && total.abstain === 0
+    : (() => { const base = total.agree + total.disagree; return base > 0 && total.agree * 2 > base; })();
+  const result: TermResult["result"] = a.vote_type === "info" ? "info" : a.status !== "closed" ? (a.status === "open" ? "in_progress" : "pending") : passes ? "pass" : "fail";
   // holders flagged "no voting right" on this agenda are not entitled
   const noRight = new Set(s.novote.filter((n) => n.term_id === a.term_id).map((n) => n.account_id));
   const entitled = Object.entries(s.regs).filter(([id]) => !noRight.has(id));
+  const noRightRegistered = Object.entries(s.regs).filter(([id]) => noRight.has(id));
   return {
     id: a.id, term_id: a.term_id, name: a.name, status: a.status, vote_type: a.vote_type, onsite, online, total,
     agree_pct: p(total.agree), disagree_pct: p(total.disagree), abstain_pct: p(total.abstain), spoiled_pct: p(total.spoiled),
-    voted_count: rows.length, eligible: entitled.reduce((x, [, r]) => x + r.shares, 0), eligible_holders: entitled.length, result,
+    voted_count: rows.length, eligible: entitled.reduce((x, [, r]) => x + r.shares, 0), eligible_holders: entitled.length,
+    novote_holders: noRightRegistered.length, novote_shares: noRightRegistered.reduce((x, [, r]) => x + r.shares, 0), result,
   };
 }
 const summary = (): Summary => ({ meeting: S().meeting, stats: stats(), terms: S().agendas.map(termResult) });
@@ -129,9 +137,28 @@ function voteRows(acc: string): VoteRow[] {
   });
 }
 
+function rollRows(term: string): RollRow[] {
+  const s = S();
+  return Object.entries(s.regs).map(([id, r]): RollRow => {
+    const h = hold(id)!, v = s.votes[term]?.[id];
+    const noRight = s.novote.some((n) => n.term_id === term && n.account_id === id);
+    const base = { account_id: id, name: h.name, shares: r.shares, channel: r.channel };
+    if (noRight) return { ...base, state: "no_right", agree: 0, disagree: 0, abstain: 0, spoiled: 0, by: "", at: "" };
+    if (!v) return { ...base, state: "not_voted", agree: r.shares, disagree: 0, abstain: 0, spoiled: 0, by: "", at: "" };
+    return { ...base, state: "voted", agree: v.agree, disagree: v.disagree, abstain: v.abstain, spoiled: v.spoiled, by: r.channel === "online" ? "online" : "เจ้าหน้าที่ ตัวอย่าง", at: r.at };
+  });
+}
+
 function audit(): AuditRow[] {
-  const acts = [["login", "เข้าสู่ระบบ"], ["register", "ลงทะเบียนผู้ถือหุ้น 1003"], ["vote", "ลงคะแนนวาระ 3"], ["agenda_open", "เปิดวาระ 3"], ["register", "ลงทะเบียนผู้ถือหุ้น 1005"], ["export", "ส่งออกสรุปผล"]];
-  return acts.map(([action, detail], i) => ({ id: i + 1, acc_id: i % 2 ? "staff1" : "admin", action, detail, ip: "10.0.0.5", created_at: new Date(Date.now() - i * 600000).toISOString() }));
+  const acts: [string, string, Record<string, unknown>][] = [
+    ["login", "", { username: "admin", role: "admin" }],
+    ["register_onsite", "1003", { type: "proxy", shares: 50000, by: "เจ้าหน้าที่ ตัวอย่าง" }],
+    ["vote_onsite", "1003", { term: "3", choice: "disagree", shares: 50000, by: "เจ้าหน้าที่ ตัวอย่าง", previous: { agree: 50000, disagree: 0, abstain: 0, spoiled: 0, by: "เจ้าหน้าที่ ตัวอย่าง" } }],
+    ["agenda_open", "", { term_id: "3", by: "ผู้ดูแลระบบ (ตัวอย่าง)" }],
+    ["vote", "1009", { term: "3", choice: "agree" }],
+    ["export_summary", "", { year: "2569", by: "ผู้ดูแลระบบ (ตัวอย่าง)" }],
+  ];
+  return acts.map(([action, acc, detail], i) => ({ id: i + 1, acc_id: acc, action, detail: JSON.stringify(detail), ip: "10.0.0.5", created_at: new Date(Date.now() - i * 600000).toISOString() }));
 }
 
 const HOLDER_TOKEN_ACC = () => { try { return (JSON.parse(sessionStorage.getItem("eagm_holder") ?? "{}") as { account_id?: string }).account_id ?? "1009"; } catch { return "1009"; } };
@@ -163,13 +190,24 @@ export async function mockApi(path: string, method: string, body: Record<string,
         if (seg[1] === "groups") return s.groups.map((g): GroupItem => ({ id: g.id, code: `G${g.id}`, name: g.name, members: g.members.length, shares: g.members.reduce((a, m) => a + m.shares, 0) }));
         break;
       }
-      case "vote": if (seg[1] === "onsite" && seg[2]) return voteRows(seg[2]); break;
+      case "vote":
+        if (seg[1] === "onsite" && seg[2]) return voteRows(seg[2]);
+        if (seg[1] === "roll") return rollRows(q.get("term_id") ?? "");
+        break;
       case "late": return Object.entries(s.late).map(([id, at]): LateRow => ({ account_id: id, name: hold(id)?.name ?? id, shares: s.regs[id]?.shares ?? 0, arrived_at: at, term_id: "3" }));
       case "novote": return s.novote.filter((n) => !q.get("term_id") || n.term_id === q.get("term_id"));
       case "online": {
         const acc = HOLDER_TOKEN_ACC(), h = hold(acc) ?? HOLDERS[8];
         if (seg[1] === "me") return { account_id: h.account_id, name: h.name, shares: h.shares, meeting: s.meeting, stats: stats(), vote_mode: s.regs[h.account_id]?.vote_mode ?? "self" };
         if (seg[1] === "agendas") return s.agendas.map((a): OnlineAgenda => ({ term_id: a.term_id, name: a.name, status: a.status, vote_type: a.vote_type, novote: s.novote.some((n) => n.term_id === a.term_id && n.account_id === h.account_id), choice: (s.votes[a.term_id]?.[h.account_id]?.choice as Choice) ?? "" }));
+        if (seg[1] === "results") {
+          const published = !!s.meeting.results_published;
+          const terms = published ? s.agendas.filter((a) => a.status !== "pending").map((a): HolderResultRow => {
+            const t = termResult(a);
+            return { term_id: a.term_id, name: a.name, vote_type: a.vote_type, status: a.status, eligible_holders: t.eligible_holders, eligible: t.eligible, novote_holders: t.novote_holders, novote_shares: t.novote_shares, total: t.total, agree_pct: t.agree_pct, disagree_pct: t.disagree_pct, abstain_pct: t.abstain_pct, spoiled_pct: t.spoiled_pct };
+          }) : [];
+          return { published, terms } satisfies HolderResults;
+        }
         if (seg[1] === "receipt") {
           const votes = s.agendas.filter((a) => s.votes[a.term_id]?.[h.account_id]).map((a) => ({ term_id: a.term_id, name: a.name, choice: s.votes[a.term_id][h.account_id].choice as Choice, auto: false }));
           const r: Receipt = { reference: "EAGM-DEMO-0001", name: h.name, account_id: h.account_id, shares: h.shares, ip: "10.0.0.5", registered_at: s.regs[h.account_id]?.at ?? new Date().toISOString(), last_vote_at: new Date().toISOString(), votes };

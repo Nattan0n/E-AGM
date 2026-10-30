@@ -1,0 +1,15 @@
+.printHead { display: none; }
+.noprint { }
+.pick { display: flex; flex-direction: column; gap: 6px; }
+.cap { font-size: 12px; font-weight: 500; color: var(--ink-muted); }
+.res { white-space: normal; }
+@media print {
+  :global(body.print-roll) { background: #fff !important; }
+  :global(body.print-roll) :global(#app-root) { opacity: 1 !important; }
+  :global(body.print-roll) :global(#app-root) > div { display: block !important; }
+  :global(body.print-roll) :global(aside), :global(body.print-roll) :global(header[class*="top"]), :global(body.print-roll) :global(nav), :global(body.print-roll) .noprint { display: none !important; }
+  :global(body.print-roll) :global(main) { padding: 0 !important; margin: 0 !important; max-width: none !important; width: 100% !important; }
+  :global(body.print-roll) :global(main) > * { animation: none !important; }
+  .printHead { display: block; margin-bottom: 8px; font-size: 13px; }
+  .printHead b { font-size: 16px; display: block; }
+}
