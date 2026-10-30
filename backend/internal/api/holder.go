@@ -43,10 +43,31 @@ func (s *Server) searchHolders(c echo.Context) error {
 		return err
 	}
 	like := "%" + escLike(q) + "%"
+	return s.holderList(c, m.Year, `h.Account_id LIKE ? OR h.N_first LIKE ? OR h.N_last LIKE ? OR h.I_tax=?`, []any{like, like, like, q}, 50)
+}
+
+// getHolder returns exactly one holder by account id (no LIKE search / 50-row cut-off).
+func (s *Server) getHolder(c echo.Context) error {
+	m, err := s.meeting(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	return s.holderList(c, m.Year, `h.Account_id=?`, []any{c.Param("acc")}, 1)
+}
+
+// holderList runs the shared holder+registration query. ?status=none|onsite|online filters server-side.
+func (s *Server) holderList(c echo.Context, year, where string, args []any, limit int) error {
+	status := c.QueryParam("status")
+	if status != "none" && status != "onsite" && status != "online" {
+		status = ""
+	}
+	const statusExpr = `CASE WHEN r.id IS NOT NULL THEN 'onsite' WHEN o.id IS NOT NULL THEN 'online' ELSE 'none' END`
+	all := append([]any{year, year, year, year}, args...)
+	all = append(all, status, status, limit)
 	rows, err := s.DB.QueryContext(c.Request().Context(), `
 		SELECT h.Account_id, TRIM(CONCAT_WS(' ',h.N_title,h.N_first,h.N_last)), COALESCE(h.Q_share,0),
 		       COALESCE(h.I_tax,''), COALESCE(h.M_phone,''),
-		       CASE WHEN r.id IS NOT NULL THEN 'onsite' WHEN o.id IS NOT NULL THEN 'online' ELSE 'none' END,
+		       `+statusExpr+`,
 		       COALESCE(r.group_regis,''), COALESCE(r.group_type,''),
 		       COALESCE(o.vote_mode,''), l.HLKey IS NOT NULL,
 		       EXISTS(SELECT 1 FROM novote n WHERE n.meeting_year=? AND n.acc_novote=h.Account_id)
@@ -54,9 +75,8 @@ func (s *Server) searchHolders(c echo.Context) error {
 		LEFT JOIN regismaim r ON r.meeting_year=? AND r.id_acc=h.Account_id
 		LEFT JOIN online_registration o ON o.meeting_year=? AND o.acc_id=h.Account_id AND o.status IN ('verified','voted')
 		LEFT JOIN holderlate l ON l.meeting_year=? AND l.AccID=h.Account_id
-		WHERE h.Account_id LIKE ? OR h.N_first LIKE ? OR h.N_last LIKE ? OR h.I_tax=?
-		ORDER BY h.N_first LIMIT 50`,
-		m.Year, m.Year, m.Year, m.Year, like, like, like, q)
+		WHERE (`+where+`) AND (?='' OR `+statusExpr+`=?)
+		ORDER BY h.N_first LIMIT ?`, all...)
 	if err != nil {
 		return err
 	}

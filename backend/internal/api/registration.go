@@ -111,16 +111,17 @@ func (s *Server) cancelRegistration(c echo.Context) error {
 		return err
 	}
 	acc := c.Param("acc")
-	var voted int
-	s.DB.QueryRowContext(ctx, `SELECT COALESCE(SUM(voted),0) FROM regissub WHERE meeting_year=? AND id_acc=?`, m.Year, acc).Scan(&voted)
-	if voted > 0 {
-		return conflict("holder has already voted - cannot cancel registration")
-	}
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	// lock the holder's vote rows so a vote cannot slip in between the check and the delete
+	var voted int
+	tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(voted),0) FROM (SELECT voted FROM regissub WHERE meeting_year=? AND id_acc=? FOR UPDATE) x`, m.Year, acc).Scan(&voted)
+	if voted > 0 {
+		return conflict("holder has already voted - cannot cancel registration")
+	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM regismaim WHERE meeting_year=? AND id_acc=?`, m.Year, acc)
 	if err != nil {
 		return err
@@ -128,9 +129,33 @@ func (s *Server) cancelRegistration(c echo.Context) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return notFound("registration not found")
 	}
-	tx.ExecContext(ctx, `DELETE FROM regissub WHERE meeting_year=? AND id_acc=?`, m.Year, acc)
-	tx.ExecContext(ctx, `DELETE gm FROM regisgroup_member gm JOIN regisgroup g ON g.id_group=gm.id_group
-		WHERE g.meeting_year=? AND gm.id_acc=?`, m.Year, acc)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM regissub WHERE meeting_year=? AND id_acc=?`, m.Year, acc); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM holderlate WHERE meeting_year=? AND AccID=?`, m.Year, acc); err != nil {
+		return err
+	}
+	// keep group totals in step when a group member is cancelled
+	var gids []int
+	if rows, err := tx.QueryContext(ctx, `SELECT gm.id_group FROM regisgroup_member gm JOIN regisgroup g ON g.id_group=gm.id_group
+		WHERE g.meeting_year=? AND gm.id_acc=?`, m.Year, acc); err == nil {
+		for rows.Next() {
+			var g int
+			if rows.Scan(&g) == nil {
+				gids = append(gids, g)
+			}
+		}
+		rows.Close()
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE gm FROM regisgroup_member gm JOIN regisgroup g ON g.id_group=gm.id_group
+		WHERE g.meeting_year=? AND gm.id_acc=?`, m.Year, acc); err != nil {
+		return err
+	}
+	for _, g := range gids {
+		if _, err := tx.ExecContext(ctx, `UPDATE regisgroup SET totle_regis=COALESCE((SELECT SUM(shares) FROM regisgroup_member WHERE id_group=?),0) WHERE id_group=?`, g, g); err != nil {
+			return err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
@@ -386,16 +411,16 @@ func (s *Server) removeGroupMember(c echo.Context) error {
 		return err
 	}
 	acc := c.Param("acc")
-	var voted int
-	s.DB.QueryRowContext(ctx, `SELECT COALESCE(SUM(voted),0) FROM regissub WHERE meeting_year=? AND id_acc=?`, m.Year, acc).Scan(&voted)
-	if voted > 0 {
-		return conflict("member has already voted")
-	}
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	var voted int
+	tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(voted),0) FROM (SELECT voted FROM regissub WHERE meeting_year=? AND id_acc=? FOR UPDATE) x`, m.Year, acc).Scan(&voted)
+	if voted > 0 {
+		return conflict("member has already voted")
+	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM regisgroup_member WHERE id_group=? AND id_acc=?`, gid, acc)
 	if err != nil {
 		return err
@@ -403,9 +428,18 @@ func (s *Server) removeGroupMember(c echo.Context) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return notFound("member not found")
 	}
-	tx.ExecContext(ctx, `DELETE FROM regismaim WHERE meeting_year=? AND id_acc=?`, m.Year, acc)
-	tx.ExecContext(ctx, `DELETE FROM regissub WHERE meeting_year=? AND id_acc=?`, m.Year, acc)
-	tx.ExecContext(ctx, `UPDATE regisgroup SET totle_regis=COALESCE((SELECT SUM(shares) FROM regisgroup_member WHERE id_group=?),0) WHERE id_group=?`, gid, gid)
+	for _, q := range []string{
+		`DELETE FROM regismaim WHERE meeting_year=? AND id_acc=?`,
+		`DELETE FROM regissub WHERE meeting_year=? AND id_acc=?`,
+		`DELETE FROM holderlate WHERE meeting_year=? AND AccID=?`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, m.Year, acc); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE regisgroup SET totle_regis=COALESCE((SELECT SUM(shares) FROM regisgroup_member WHERE id_group=?),0) WHERE id_group=?`, gid, gid); err != nil {
+		return err
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}

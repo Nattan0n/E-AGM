@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -78,6 +79,8 @@ func (s *Server) listAgendas(c echo.Context) error {
 	return c.JSON(http.StatusOK, ags)
 }
 
+var termIDRe = regexp.MustCompile(`^\d{1,3}(\.\d{1,2})?$`)
+
 func (s *Server) createAgenda(c echo.Context) error {
 	m, err := s.writable(c.Request().Context())
 	if err != nil {
@@ -86,6 +89,13 @@ func (s *Server) createAgenda(c echo.Context) error {
 	var a Agenda
 	if err := c.Bind(&a); err != nil || strings.TrimSpace(a.TermID) == "" || strings.TrimSpace(a.Name) == "" {
 		return bad("term_id and name required")
+	}
+	a.TermID, a.Name = strings.TrimSpace(a.TermID), strings.TrimSpace(a.Name)
+	if !termIDRe.MatchString(a.TermID) {
+		return bad("term_id must be a number such as 3 or 5.1")
+	}
+	if len([]rune(a.Name)) > 500 {
+		return bad("name is too long")
 	}
 	if a.VoteType == "" {
 		a.VoteType = "ordinary"
@@ -179,8 +189,12 @@ func (s *Server) deleteAgenda(c echo.Context) error {
 		return err
 	}
 	defer tx.Rollback()
-	tx.Exec(`DELETE FROM regissub WHERE id_term=?`, cur.ID)
-	tx.Exec(`DELETE FROM novote WHERE meeting_year=? AND id_term=?`, m.Year, cur.TermID)
+	if _, err := tx.Exec(`DELETE FROM regissub WHERE id_term=?`, cur.ID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM novote WHERE meeting_year=? AND id_term=?`, m.Year, cur.TermID); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`DELETE FROM termpartner WHERE id=?`, cur.ID); err != nil {
 		return err
 	}
@@ -211,29 +225,45 @@ func (s *Server) setAgendaStatus(c echo.Context) error {
 	ctx := c.Request().Context()
 	switch {
 	case body.Status == "open" && cur.Status == "pending":
-		ags, err := s.agendasOf(c, m.Year)
+		// serialise concurrent "open" requests: lock the meeting's agenda rows while checking and updating
+		tx, err := s.DB.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
-		for _, a := range ags {
-			if a.Status == "open" && parentOf(a.TermID) != parentOf(cur.TermID) {
-				return conflict("close agenda " + a.TermID + " first")
+		defer tx.Rollback()
+		rows, err := tx.QueryContext(ctx, `SELECT term_id FROM termpartner WHERE meeting_year=? AND status='open' FOR UPDATE`, m.Year)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var t string
+			if err := rows.Scan(&t); err == nil && parentOf(t) != parentOf(cur.TermID) {
+				rows.Close()
+				return conflict("close agenda " + t + " first")
 			}
 		}
-		if _, err := s.DB.ExecContext(ctx, `UPDATE termpartner SET status='open',open='1' WHERE id=?`, cur.ID); err != nil {
+		rows.Close()
+		if _, err := tx.ExecContext(ctx, `UPDATE termpartner SET status='open',open='1' WHERE id=?`, cur.ID); err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
 			return err
 		}
 	case body.Status == "closed" && cur.Status == "open":
 		if _, err := s.DB.ExecContext(ctx,
-			`UPDATE termpartner SET status='closed',open='0',closevote=NOW() WHERE id=?`, cur.ID); err != nil {
+			`UPDATE termpartner SET status='closed',open='0',closevote=NOW() WHERE id=? AND status='open'`, cur.ID); err != nil {
 			return err
 		}
 		// Snapshot eligible shares / voter count (unvoted holders count as "agree" in the summary).
-		if rs, err := s.computeResults(ctx, m.Year); err == nil {
-			for _, r := range rs {
-				if r.ID == cur.ID {
-					s.DB.ExecContext(ctx, `UPDATE termpartner SET relateshare=?,countshare=? WHERE id=?`,
-						r.Eligible, r.VotedCount, cur.ID)
+		rs, err := s.computeResults(ctx, m.Year)
+		if err != nil {
+			return err
+		}
+		for _, r := range rs {
+			if r.ID == cur.ID {
+				if _, err := s.DB.ExecContext(ctx, `UPDATE termpartner SET relateshare=?,countshare=? WHERE id=?`,
+					r.Eligible, r.VotedCount, cur.ID); err != nil {
+					return err
 				}
 			}
 		}

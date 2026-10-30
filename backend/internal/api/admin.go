@@ -7,6 +7,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/thairung/e-agm/internal/auth"
 )
 
 type UserRow struct {
@@ -52,6 +54,10 @@ func (s *Server) createUser(c echo.Context) error {
 	if err := c.Bind(&r); err != nil || strings.TrimSpace(r.Username) == "" || !validRole[r.Role] {
 		return bad("username and valid role required")
 	}
+	r.Username = strings.TrimSpace(r.Username)
+	if len([]rune(r.Username)) > 50 || len([]rune(r.Fullname)) > 200 || len([]rune(r.Dept)) > 100 {
+		return bad("username, fullname or dept is too long")
+	}
 	if len(r.Password) < 8 {
 		return bad("password must be at least 8 characters")
 	}
@@ -81,8 +87,19 @@ func (s *Server) updateUser(c echo.Context) error {
 		active = *r.Active
 	}
 	ctx := c.Request().Context()
-	if _, err := s.DB.ExecContext(ctx, `UPDATE useradmin SET Fullname=?,Part=?,role=?,active=? WHERE ida=?`, r.Fullname, r.Dept, r.Role, active, id); err != nil {
+	if cl := auth.FromContext(c); cl != nil && cl.UserID == id && (r.Role != "admin" || !active) {
+		return conflict("ไม่สามารถลดสิทธิ์หรือปิดใช้งานบัญชีของตัวเองได้")
+	}
+	res, err := s.DB.ExecContext(ctx, `UPDATE useradmin SET Fullname=?,Part=?,role=?,active=? WHERE ida=?`, r.Fullname, r.Dept, r.Role, active, id)
+	if err != nil {
 		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		var exists int
+		s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM useradmin WHERE ida=?`, id).Scan(&exists)
+		if exists == 0 {
+			return notFound("user not found")
+		}
 	}
 	if r.Password != "" {
 		if len(r.Password) < 8 {
@@ -92,7 +109,9 @@ func (s *Server) updateUser(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		s.DB.ExecContext(ctx, `UPDATE useradmin SET pws_hash=? WHERE ida=?`, string(hash), id)
+		if _, err := s.DB.ExecContext(ctx, `UPDATE useradmin SET pws_hash=? WHERE ida=?`, string(hash), id); err != nil {
+			return err
+		}
 	}
 	s.audit(c, "", "user_update", echo.Map{"id": id, "role": r.Role, "active": active})
 	return c.NoContent(http.StatusNoContent)

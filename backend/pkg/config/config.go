@@ -26,7 +26,7 @@ func Load() (*Config, error) {
 		DBPort:    get("DB_PORT", "3306"),
 		DBName:    get("DB_NAME", "eagm_db"),
 		DBUser:    get("DB_USER", "root"),
-		DBPass:    os.Getenv("DB_ROOT_PASSWORD"),
+		DBPass:    get("DB_PASSWORD", os.Getenv("DB_ROOT_PASSWORD")), // DB_PASSWORD lets the app use a limited DB user instead of root
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		Addr:      get("ADDR", ":8080"),
 		WebOrigin: get("WEB_ORIGIN", "http://localhost:3000"),

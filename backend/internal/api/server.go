@@ -4,13 +4,29 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 
 	"github.com/thairung/e-agm/internal/auth"
+)
+
+// rateLimit allows `perMin` requests a minute per client IP with a small burst.
+func rateLimit(perMin float64, burst int) echo.MiddlewareFunc {
+	return middleware.RateLimiter(middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+		Rate: rate.Limit(perMin / 60), Burst: burst, ExpiresIn: 15 * time.Minute,
+	}))
+}
+
+// Holder-side failure guards: wrong identity data and wrong OTPs are counted per account and per IP.
+var (
+	identityGuard = auth.NewFailGuard(5, 15*time.Minute, 15*time.Minute)
+	otpIPGuard    = auth.NewFailGuard(20, 15*time.Minute, 15*time.Minute)
 )
 
 type Server struct {
@@ -22,6 +38,14 @@ type Server struct {
 }
 
 func (s *Server) Routes(e *echo.Echo) {
+	// Client IP: only trust X-Forwarded-For when running behind our own reverse proxy (TRUST_PROXY=1).
+	if os.Getenv("TRUST_PROXY") == "1" {
+		e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	} else {
+		e.IPExtractor = echo.ExtractIPDirect()
+	}
+	e.Use(middleware.Secure())
+	e.Use(middleware.BodyLimit("1M"))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{s.Origin},
 		AllowHeaders: []string{"Authorization", "Content-Type"},
@@ -36,7 +60,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	})
 
 	a := &auth.Handler{DB: s.DB, Secret: s.Secret}
-	e.POST("/api/auth/login", a.Login, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(5)))
+	e.POST("/api/auth/login", a.Login, rateLimit(30, 10))
 
 	jwtMW := echojwt.WithConfig(echojwt.Config{
 		SigningKey:    s.Secret,
@@ -47,7 +71,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	adminOnly := auth.RequireRole("admin")
 
 	// ---- staff / admin (read) ----
-	g := e.Group("/api", jwtMW, staffRoles)
+	g := e.Group("/api", jwtMW, s.activeUser, staffRoles)
 	g.GET("/me", func(c echo.Context) error {
 		cl := auth.FromContext(c)
 		return c.JSON(http.StatusOK, echo.Map{"uid": cl.UserID, "role": cl.Role, "name": cl.Name})
@@ -57,6 +81,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	g.GET("/summary", s.summary)
 	g.GET("/agendas", s.listAgendas)
 	g.GET("/holders/search", s.searchHolders)
+	g.GET("/holders/:acc", s.getHolder)
 	g.GET("/registration/groups", s.listGroups)
 	g.GET("/registration/groups/:id", s.groupMembers)
 	g.GET("/vote/onsite/:acc", s.holderVotes)
@@ -64,7 +89,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	g.GET("/novote", s.listNovote)
 
 	// ---- staff / admin (write) ----
-	w := e.Group("/api", jwtMW, staffOnly)
+	w := e.Group("/api", jwtMW, s.activeUser, staffOnly)
 	w.POST("/registration", s.registerIndividual)
 	w.DELETE("/registration/:acc", s.cancelRegistration)
 	w.POST("/registration/:acc/convert", s.convertToOnsite)
@@ -72,12 +97,13 @@ func (s *Server) Routes(e *echo.Echo) {
 	w.POST("/registration/groups/:id/members", s.addGroupMember)
 	w.DELETE("/registration/groups/:id/members/:acc", s.removeGroupMember)
 	w.POST("/vote/onsite", s.voteOnsite)
+	w.DELETE("/vote/onsite/:acc/:term", s.clearVote)
 	w.POST("/late", s.addLate)
 	w.POST("/novote", s.addNovote)
 	w.DELETE("/novote/:id", s.deleteNovote)
 
 	// ---- admin ----
-	ad := e.Group("/api/admin", jwtMW, adminOnly)
+	ad := e.Group("/api/admin", jwtMW, s.activeUser, adminOnly)
 	ad.POST("/agendas", s.createAgenda)
 	ad.PUT("/agendas/:id", s.updateAgenda)
 	ad.DELETE("/agendas/:id", s.deleteAgenda)
@@ -97,13 +123,14 @@ func (s *Server) Routes(e *echo.Echo) {
 	ad.GET("/export/summary.csv", s.exportSummary)
 
 	// ---- online shareholder ----
-	otpLimit := middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(3))
+	otpLimit := rateLimit(20, 10)
 	e.POST("/api/online/register", s.onlineRegister, otpLimit)
 	e.POST("/api/online/verify-otp", s.onlineVerify, otpLimit)
 	h := e.Group("/api/online", jwtMW, auth.RequireRole("holder"), s.holderSession)
 	h.GET("/me", s.onlineMe)
 	h.GET("/agendas", s.onlineAgendas)
 	h.POST("/vote", s.onlineVote)
+	h.POST("/logout", s.onlineLogout)
 	h.PUT("/vote-mode", s.onlineSetMode)
 	h.GET("/receipt", s.onlineReceipt)
 }
@@ -111,6 +138,16 @@ func (s *Server) Routes(e *echo.Echo) {
 // ---- helpers ----
 
 func (s *Server) audit(c echo.Context, acc, action string, detail any) {
+	// Staff/admin actions carry who did them; holder actions are identified by acc.
+	if cl := auth.FromContext(c); cl != nil && cl.UserID != 0 {
+		if mp, ok := detail.(echo.Map); ok {
+			if _, has := mp["by"]; !has {
+				mp["by"] = cl.Name
+			}
+		} else {
+			detail = echo.Map{"by": cl.Name, "data": detail}
+		}
+	}
 	b, _ := json.Marshal(detail)
 	year := ""
 	if m, err := s.meeting(c.Request().Context()); err == nil {
@@ -123,6 +160,24 @@ func (s *Server) audit(c echo.Context, acc, action string, detail any) {
 	s.DB.ExecContext(c.Request().Context(),
 		`INSERT INTO audit_log(acc_id,action,detail,ip_address,user_agent,meeting_year) VALUES(?,?,?,?,?,?)`,
 		nullStr(acc), action, string(b), c.RealIP(), ua, nullStr(year))
+}
+
+// activeUser re-checks the staff/admin account on every request, so disabling a user or changing
+// their role takes effect immediately instead of when the 12h token expires.
+func (s *Server) activeUser(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		cl := auth.FromContext(c)
+		if cl == nil || cl.UserID == 0 {
+			return next(c) // holder tokens are checked by holderSession
+		}
+		var role string
+		var active bool
+		if err := s.DB.QueryRowContext(c.Request().Context(), `SELECT role,active FROM useradmin WHERE ida=?`, cl.UserID).Scan(&role, &active); err != nil || !active {
+			return echo.NewHTTPError(http.StatusUnauthorized, "บัญชีถูกปิดใช้งานหรือไม่พบผู้ใช้")
+		}
+		cl.Role = role
+		return next(c)
+	}
 }
 
 func nullStr(s string) any {

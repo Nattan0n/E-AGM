@@ -13,7 +13,8 @@ type voteReq struct {
 	AccountID string `json:"account_id"`
 	TermID    string `json:"term_id"`
 	Choice    string `json:"choice"`
-	Shares    int    `json:"shares"` // optional: vote with fewer shares than held; remainder counts as agree
+	Overwrite bool   `json:"overwrite"` // must be true to replace a vote that was already recorded
+	Shares    int    `json:"shares"`    // optional: vote with fewer shares than held; remainder counts as agree
 	// Split divides the holder's shares between choices (custodians). It must add up to the full shares.
 	Split *struct {
 		Agree    int `json:"agree"`
@@ -56,9 +57,11 @@ func (s *Server) voteOnsite(c echo.Context) error {
 		return err
 	}
 	defer tx.Rollback()
-	var full int
-	err = tx.QueryRowContext(ctx, `SELECT full_term FROM regissub WHERE meeting_year=? AND id_term=? AND id_acc=? FOR UPDATE`,
-		m.Year, termPK, r.AccountID).Scan(&full)
+	var full, pd, pn, pf int
+	var wasVoted bool
+	var prevBy sql.NullString
+	err = tx.QueryRowContext(ctx, `SELECT full_term,voted,disagree_term,noc_term,fail_term,voted_by FROM regissub WHERE meeting_year=? AND id_term=? AND id_acc=? FOR UPDATE`,
+		m.Year, termPK, r.AccountID).Scan(&full, &wasVoted, &pd, &pn, &pf, &prevBy)
 	if err == sql.ErrNoRows {
 		return notFound("holder is not registered onsite")
 	} else if err != nil {
@@ -66,6 +69,9 @@ func (s *Server) voteOnsite(c echo.Context) error {
 	}
 	if full == 0 {
 		return conflict("holder has no voting right on this agenda")
+	}
+	if wasVoted && !r.Overwrite {
+		return conflict("already_voted")
 	}
 	n := r.Shares
 	if n <= 0 || n > full {
@@ -99,7 +105,47 @@ func (s *Server) voteOnsite(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	s.audit(c, r.AccountID, "vote_onsite", echo.Map{"term": r.TermID, "choice": r.Choice, "shares": n, "by": actor(c)})
+	d := echo.Map{"term": r.TermID, "choice": r.Choice, "shares": n, "by": actor(c)}
+	if wasVoted {
+		d["previous"] = echo.Map{"agree": full - pd - pn - pf, "disagree": pd, "abstain": pn, "spoiled": pf, "by": prevBy.String}
+	}
+	s.audit(c, r.AccountID, "vote_onsite", d)
+	return c.NoContent(http.StatusNoContent)
+}
+
+// clearVote resets a recorded onsite vote back to "not voted" (staff correcting a mistake).
+func (s *Server) clearVote(c echo.Context) error {
+	ctx := c.Request().Context()
+	m, err := s.writable(ctx)
+	if err != nil {
+		return err
+	}
+	acc, term := c.Param("acc"), c.Param("term")
+	var termPK int
+	var status string
+	if err := s.DB.QueryRowContext(ctx, `SELECT id,status FROM termpartner WHERE meeting_year=? AND term_id=?`, m.Year, term).Scan(&termPK, &status); err != nil {
+		return notFound("agenda not found")
+	}
+	if status == "closed" {
+		return conflict("agenda already closed")
+	}
+	var full, pd, pn, pf int
+	var voted bool
+	err = s.DB.QueryRowContext(ctx, `SELECT full_term,voted,disagree_term,noc_term,fail_term FROM regissub WHERE meeting_year=? AND id_term=? AND id_acc=?`,
+		m.Year, termPK, acc).Scan(&full, &voted, &pd, &pn, &pf)
+	if err == sql.ErrNoRows {
+		return notFound("holder is not registered onsite")
+	} else if err != nil {
+		return err
+	}
+	if !voted {
+		return c.NoContent(http.StatusNoContent)
+	}
+	if _, err := s.DB.ExecContext(ctx, `UPDATE regissub SET disagree_term=0,noc_term=0,fail_term=0,voted=0,voted_at=NULL,voted_by=NULL WHERE meeting_year=? AND id_term=? AND id_acc=?`,
+		m.Year, termPK, acc); err != nil {
+		return err
+	}
+	s.audit(c, acc, "vote_clear", echo.Map{"term": term, "previous": echo.Map{"agree": full - pd - pn - pf, "disagree": pd, "abstain": pn, "spoiled": pf}})
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -283,6 +329,7 @@ func (s *Server) addNovote(c echo.Context) error {
 	var r struct {
 		AccountID string `json:"account_id"`
 		TermID    string `json:"term_id"`
+		Force     bool   `json:"force"` // confirm discarding a vote that was already recorded
 	}
 	if err := c.Bind(&r); err != nil || r.AccountID == "" || r.TermID == "" {
 		return bad("account_id and term_id required")
@@ -309,18 +356,28 @@ func (s *Server) addNovote(c echo.Context) error {
 	if dup > 0 {
 		return conflict("already excluded from this agenda")
 	}
+	// a vote already recorded for this agenda is discarded - only with explicit confirmation
+	var hadOnsite, hadOnline int
+	tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM regissub WHERE meeting_year=? AND id_term=? AND id_acc=? AND voted=1`, m.Year, termPK, r.AccountID).Scan(&hadOnsite)
+	tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM votes_online WHERE meeting_year=? AND term_id=? AND acc_id=?`, m.Year, r.TermID, r.AccountID).Scan(&hadOnline)
+	if (hadOnsite > 0 || hadOnline > 0) && !r.Force {
+		return conflict("has_votes")
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO novote(meeting_year,id_term,acc_novote,name_novote,share_novote) VALUES(?,?,?,?,?)`,
 		m.Year, r.TermID, r.AccountID, name, shares); err != nil {
 		return err
 	}
-	// remove any vote already recorded for this agenda
-	tx.ExecContext(ctx, `UPDATE regissub SET full_term=0,disagree_term=0,noc_term=0,fail_term=0,voted=0 WHERE meeting_year=? AND id_term=? AND id_acc=?`,
-		m.Year, termPK, r.AccountID)
-	tx.ExecContext(ctx, `DELETE FROM votes_online WHERE meeting_year=? AND term_id=? AND acc_id=?`, m.Year, r.TermID, r.AccountID)
+	if _, err := tx.ExecContext(ctx, `UPDATE regissub SET full_term=0,disagree_term=0,noc_term=0,fail_term=0,voted=0 WHERE meeting_year=? AND id_term=? AND id_acc=?`,
+		m.Year, termPK, r.AccountID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM votes_online WHERE meeting_year=? AND term_id=? AND acc_id=?`, m.Year, r.TermID, r.AccountID); err != nil {
+		return err
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	s.audit(c, r.AccountID, "novote_add", echo.Map{"term": r.TermID})
+	s.audit(c, r.AccountID, "novote_add", echo.Map{"term": r.TermID, "discarded_onsite": hadOnsite > 0, "discarded_online": hadOnline > 0})
 	return c.NoContent(http.StatusCreated)
 }
 
@@ -338,16 +395,25 @@ func (s *Server) deleteNovote(c echo.Context) error {
 	if err := s.DB.QueryRowContext(ctx, `SELECT id_term,acc_novote FROM novote WHERE id_novote=? AND meeting_year=?`, id, m.Year).Scan(&term, &acc); err != nil {
 		return notFound("not found")
 	}
+	var tstatus string
+	s.DB.QueryRowContext(ctx, `SELECT status FROM termpartner WHERE meeting_year=? AND term_id=?`, m.Year, term).Scan(&tstatus)
+	if tstatus == "closed" {
+		return conflict("agenda already closed")
+	}
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	tx.ExecContext(ctx, `DELETE FROM novote WHERE id_novote=?`, id)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM novote WHERE id_novote=?`, id); err != nil {
+		return err
+	}
 	// restore voting right for onsite registrants
-	tx.ExecContext(ctx, `UPDATE regissub rs JOIN termpartner t ON t.id=rs.id_term AND t.term_id=?
+	if _, err := tx.ExecContext(ctx, `UPDATE regissub rs JOIN termpartner t ON t.id=rs.id_term AND t.term_id=?
 		JOIN regismaim r ON r.meeting_year=rs.meeting_year AND r.id_acc=rs.id_acc
-		SET rs.full_term=r.mq_share WHERE rs.meeting_year=? AND rs.id_acc=?`, term, m.Year, acc)
+		SET rs.full_term=r.mq_share WHERE rs.meeting_year=? AND rs.id_acc=?`, term, m.Year, acc); err != nil {
+		return err
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}

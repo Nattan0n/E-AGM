@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -112,8 +113,14 @@ func (s *Server) updateMeeting(c echo.Context) error {
 	if err := c.Bind(&r); err != nil {
 		return bad("invalid body")
 	}
-	if r.QuorumPct <= 0 || r.QuorumPct > 100 {
+	if r.QuorumPct == 0 {
 		r.QuorumPct = m.QuorumPct
+	}
+	if r.QuorumPct < 1 || r.QuorumPct > 100 {
+		return bad("quorum_pct must be between 1 and 100")
+	}
+	if strings.TrimSpace(r.Detail) == "" {
+		r.Detail = m.Detail
 	}
 	online := m.OnlineEnabled
 	if r.OnlineEnabled != nil {

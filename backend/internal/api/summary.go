@@ -261,8 +261,8 @@ func (s *Server) exportSummary(c echo.Context) error {
 	w := csv.NewWriter(c.Response())
 	w.Write([]string{"วาระ", "ชื่อวาระ", "เห็นด้วย", "ไม่เห็นด้วย", "งดออกเสียง", "บัตรเสีย", "ผล"})
 	for _, r := range rs {
-		w.Write([]string{r.TermID, csvSafe(r.Name),
-			fmt.Sprint(r.Total.Agree), fmt.Sprint(r.Total.Disagree), fmt.Sprint(r.Total.Abstain), fmt.Sprint(r.Total.Spoiled), r.Result})
+		w.Write([]string{csvSafe(r.TermID), csvSafe(r.Name),
+			fmt.Sprint(r.Total.Agree), fmt.Sprint(r.Total.Disagree), fmt.Sprint(r.Total.Abstain), fmt.Sprint(r.Total.Spoiled), csvSafe(r.Result)})
 	}
 	w.Flush()
 	s.audit(c, "", "export_summary", echo.Map{"year": m.Year})
@@ -271,7 +271,7 @@ func (s *Server) exportSummary(c echo.Context) error {
 
 // csvSafe neutralises spreadsheet formula injection.
 func csvSafe(v string) string {
-	if v != "" && (v[0] == '=' || v[0] == '+' || v[0] == '-' || v[0] == '@') {
+	if v != "" && (v[0] == '=' || v[0] == '+' || v[0] == '-' || v[0] == '@' || v[0] == '\t' || v[0] == '\r') {
 		return "'" + v
 	}
 	return v

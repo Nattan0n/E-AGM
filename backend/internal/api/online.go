@@ -94,26 +94,32 @@ func (s *Server) onlineRegister(c echo.Context) error {
 	if m.Locked() || !m.OnlineEnabled {
 		return echo.NewHTTPError(http.StatusForbidden, "ปิดรับลงทะเบียนออนไลน์แล้ว")
 	}
-	mismatch := echo.NewHTTPError(http.StatusUnauthorized, "ข้อมูลไม่ตรงกับทะเบียนผู้ถือหุ้น")
+	ipKey := "ip|" + c.RealIP()
+	accKey := "acc|" + r.AccountID
+	if !identityGuard.Allowed(ipKey) || !identityGuard.Allowed(accKey) {
+		s.audit(c, r.AccountID, "register_locked", nil)
+		return echo.NewHTTPError(http.StatusTooManyRequests, "กรอกข้อมูลไม่ตรงหลายครั้ง กรุณารอสักครู่แล้วลองใหม่")
+	}
+	mismatch := &mismatchErr{guardKeys: []string{ipKey, accKey}, err: echo.NewHTTPError(http.StatusUnauthorized, "ข้อมูลไม่ตรงกับทะเบียนผู้ถือหุ้น")}
 
 	var tax, mPhone, mail string
 	err = s.DB.QueryRowContext(ctx, `SELECT COALESCE(I_tax,''),COALESCE(M_phone,''),COALESCE(I_Email,'') FROM holder WHERE Account_id=?`, r.AccountID).
 		Scan(&tax, &mPhone, &mail)
 	if err == sql.ErrNoRows {
-		return mismatch
+		return s.failIdentity(c, r.AccountID, mismatch)
 	} else if err != nil {
 		return err
 	}
 	if subtle.ConstantTimeCompare([]byte(nonDigit.ReplaceAllString(tax, "")), []byte(nonDigit.ReplaceAllString(r.IDCard, ""))) != 1 {
-		return mismatch
+		return s.failIdentity(c, r.AccountID, mismatch)
 	}
 	// Where the register already holds a contact, the OTP target must match it.
 	phone, email := nonDigit.ReplaceAllString(r.Phone, ""), strings.ToLower(strings.TrimSpace(r.Email))
 	if p := nonDigit.ReplaceAllString(mPhone, ""); p != "" && p != phone {
-		return mismatch
+		return s.failIdentity(c, r.AccountID, mismatch)
 	}
 	if mail != "" && strings.ToLower(mail) != email {
-		return mismatch
+		return s.failIdentity(c, r.AccountID, mismatch)
 	}
 	to := phone
 	if r.Channel == "email" {
@@ -166,7 +172,7 @@ func (s *Server) onlineRegister(c echo.Context) error {
 	}
 	if err == nil && status != "cancelled" {
 		// re-login: new OTP on the existing registration (keeps status verified/voted until re-verified)
-		_, err = s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_code=?,otp_expires_at=?,otp_verified=0,phone=?,email=?,ip_address=?,vote_mode=IF(status='voted',vote_mode,?) WHERE id=?`,
+		_, err = s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_attempts=0,token_expires_at=NULL,otp_code=?,otp_expires_at=?,otp_verified=0,phone=?,email=?,ip_address=?,vote_mode=IF(status='voted',vote_mode,?) WHERE id=?`,
 			otpHash, exp, phone, email, c.RealIP(), r.VoteMode, existing)
 	} else if err == nil && status == "cancelled" {
 		return conflict("การลงทะเบียนออนไลน์ถูกยกเลิก กรุณาติดต่อเจ้าหน้าที่")
@@ -177,6 +183,7 @@ func (s *Server) onlineRegister(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	identityGuard.Reset(accKey)
 	if err := s.OTP.Send(r.Channel, to, code); err != nil {
 		return echo.NewHTTPError(http.StatusBadGateway, "ส่ง OTP ไม่สำเร็จ")
 	}
@@ -186,6 +193,20 @@ func (s *Server) onlineRegister(c echo.Context) error {
 		resp["dev_otp"] = code
 	}
 	return c.JSON(http.StatusOK, resp)
+}
+
+// mismatchErr is the generic identity error plus the guard keys to charge for it.
+type mismatchErr struct {
+	guardKeys []string
+	err       error
+}
+
+func (s *Server) failIdentity(c echo.Context, acc string, m *mismatchErr) error {
+	for _, k := range m.guardKeys {
+		identityGuard.Fail(k)
+	}
+	s.audit(c, acc, "register_fail", nil)
+	return m.err
 }
 
 func maskTo(channel, to string) string {
@@ -226,22 +247,29 @@ func (s *Server) onlineVerify(c echo.Context) error {
 	if err != nil || status == "cancelled" || verified || hash == "" || !exp.Valid || exp.Time.Before(time.Now()) {
 		return invalid
 	}
-	// max 5 wrong attempts per issued OTP
-	var attempts int
-	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log WHERE acc_id=? AND action='otp_fail' AND created_at > ? `,
-		r.AccountID, exp.Time.Add(-10*time.Minute)).Scan(&attempts)
-	if attempts >= 5 {
+	// max 5 attempts per issued OTP: the counter is bumped atomically BEFORE comparing, so parallel guesses cannot exceed it
+	ipKey := "otp|" + c.RealIP()
+	if !otpIPGuard.Allowed(ipKey) {
+		return echo.NewHTTPError(http.StatusTooManyRequests, "ลองผิดเกินกำหนด กรุณารอสักครู่")
+	}
+	res, err := s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_attempts=otp_attempts+1 WHERE id=? AND otp_attempts<5`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
 		return echo.NewHTTPError(http.StatusTooManyRequests, "ลองผิดเกินกำหนด กรุณาขอ OTP ใหม่")
 	}
 	if !hmac.Equal([]byte(s.hashSecret(r.AccountID, r.OTP)), []byte(hash)) {
+		otpIPGuard.Fail(ipKey)
 		s.audit(c, r.AccountID, "otp_fail", nil)
 		return invalid
 	}
+	otpIPGuard.Reset(ipKey)
 	newStatus := "verified"
 	if status == "voted" {
 		newStatus = "voted"
 	}
-	if _, err := s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_verified=1,otp_code=NULL,status=?,token_expires_at=? WHERE id=?`,
+	if _, err := s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_verified=1,otp_attempts=0,otp_code=NULL,status=?,token_expires_at=? WHERE id=?`,
 		newStatus, time.Now().Add(12*time.Hour), id); err != nil {
 		return err
 	}
@@ -254,6 +282,16 @@ func (s *Server) onlineVerify(c echo.Context) error {
 }
 
 // ---- authenticated holder endpoints ----
+
+// onlineLogout ends the session server-side so the old token stops working immediately.
+func (s *Server) onlineLogout(c echo.Context) error {
+	cl := auth.FromContext(c)
+	if _, err := s.DB.ExecContext(c.Request().Context(), `UPDATE online_registration SET token_expires_at=NOW() WHERE id=? AND acc_id=?`, cl.RegID, cl.AccID); err != nil {
+		return err
+	}
+	s.audit(c, cl.AccID, "logout", echo.Map{"mode": "online"})
+	return c.NoContent(http.StatusNoContent)
+}
 
 func (s *Server) onlineMe(c echo.Context) error {
 	cl := auth.FromContext(c)
@@ -334,8 +372,13 @@ func (s *Server) onlineVote(c echo.Context) error {
 	if !m.RoomOpen {
 		return conflict("ห้องประชุมยังไม่เปิด")
 	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 	var vmode string
-	s.DB.QueryRowContext(ctx, `SELECT vote_mode FROM online_registration WHERE id=?`, cl.RegID).Scan(&vmode)
+	tx.QueryRowContext(ctx, `SELECT vote_mode FROM online_registration WHERE id=? FOR UPDATE`, cl.RegID).Scan(&vmode)
 	if vmode == "staff" {
 		return echo.NewHTTPError(http.StatusForbidden, "ท่านเลือกให้เจ้าหน้าที่ลงคะแนนแทน — หากต้องการลงคะแนนเอง ให้เปลี่ยนวิธีลงคะแนนก่อน")
 	}
@@ -355,12 +398,17 @@ func (s *Server) onlineVote(c echo.Context) error {
 	if nv > 0 {
 		return echo.NewHTTPError(http.StatusForbidden, "ไม่มีสิทธิ์ลงคะแนนในวาระนี้")
 	}
-	if _, err := s.DB.ExecContext(ctx,
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO votes_online(online_reg_id,acc_id,term_id,vote_choice,ip_address,meeting_year) VALUES(?,?,?,?,?,?)`,
 		cl.RegID, cl.AccID, r.TermID, r.Choice, c.RealIP(), m.Year); err != nil {
 		return conflict("ลงคะแนนในวาระนี้แล้ว ไม่สามารถเปลี่ยนแปลงได้")
 	}
-	s.DB.ExecContext(ctx, `UPDATE online_registration SET status='voted' WHERE id=?`, cl.RegID)
+	if _, err := tx.ExecContext(ctx, `UPDATE online_registration SET status='voted' WHERE id=?`, cl.RegID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 	s.audit(c, cl.AccID, "vote", echo.Map{"term": r.TermID, "choice": r.Choice})
 	return c.NoContent(http.StatusCreated)
 }
@@ -379,12 +427,27 @@ func (s *Server) onlineSetMode(c echo.Context) error {
 		return bad("mode must be self or staff")
 	}
 	var n int
-	m, _ := s.meeting(ctx)
-	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM votes_online WHERE meeting_year=? AND acc_id=?`, m.Year, cl.AccID).Scan(&n)
+	m, err := s.meeting(ctx)
+	if err != nil {
+		return err
+	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var cur string
+	if err := tx.QueryRowContext(ctx, `SELECT vote_mode FROM online_registration WHERE id=? FOR UPDATE`, cl.RegID).Scan(&cur); err != nil {
+		return err
+	}
+	tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM votes_online WHERE meeting_year=? AND acc_id=?`, m.Year, cl.AccID).Scan(&n)
 	if n > 0 {
 		return conflict("ลงคะแนนออนไลน์ไปแล้ว ไม่สามารถเปลี่ยนวิธีลงคะแนนได้")
 	}
-	if _, err := s.DB.ExecContext(ctx, `UPDATE online_registration SET vote_mode=? WHERE id=?`, r.Mode, cl.RegID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE online_registration SET vote_mode=? WHERE id=?`, r.Mode, cl.RegID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	s.audit(c, cl.AccID, "vote_mode", echo.Map{"mode": r.Mode})

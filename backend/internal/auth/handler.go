@@ -2,6 +2,7 @@ package auth
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -25,6 +26,19 @@ type Handler struct {
 	Secret []byte
 }
 
+// loginGuard locks a username+IP pair for 10 minutes after 5 wrong passwords in 10 minutes.
+var loginGuard = NewFailGuard(5, 10*time.Minute, 10*time.Minute)
+
+func (h *Handler) audit(c echo.Context, action string, detail map[string]any) {
+	b, _ := json.Marshal(detail)
+	ua := c.Request().UserAgent()
+	if len(ua) > 255 {
+		ua = ua[:255]
+	}
+	h.DB.ExecContext(c.Request().Context(),
+		`INSERT INTO audit_log(action,detail,ip_address,user_agent) VALUES(?,?,?,?)`, action, string(b), c.RealIP(), ua)
+}
+
 type loginReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -45,6 +59,11 @@ func (h *Handler) Login(c echo.Context) error {
 	if err := c.Bind(&req); err != nil || req.Username == "" || req.Password == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "username and password required")
 	}
+	gk := req.Username + "|" + c.RealIP()
+	if !loginGuard.Allowed(gk) {
+		h.audit(c, "login_locked", map[string]any{"username": req.Username})
+		return echo.NewHTTPError(http.StatusTooManyRequests, "ลองเข้าสู่ระบบผิดหลายครั้ง กรุณารอ 10 นาที")
+	}
 	var (
 		id               int
 		hash, role, name string
@@ -55,17 +74,23 @@ func (h *Handler) Login(c echo.Context) error {
 		Scan(&id, &hash, &role, &name, &active)
 	if err == sql.ErrNoRows {
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
+		loginGuard.Fail(gk)
+		h.audit(c, "login_fail", map[string]any{"username": req.Username})
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 	} else if err != nil {
 		return err
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)) != nil || !active {
+		loginGuard.Fail(gk)
+		h.audit(c, "login_fail", map[string]any{"username": req.Username})
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 	}
 	tok, err := Sign(h.Secret, &Claims{UserID: id, Role: role, Name: name}, 12*time.Hour)
 	if err != nil {
 		return err
 	}
+	loginGuard.Reset(gk)
+	h.audit(c, "login", map[string]any{"username": req.Username, "role": role})
 	return c.JSON(http.StatusOK, echo.Map{"token": tok, "role": role, "name": name, "username": req.Username})
 }
 
