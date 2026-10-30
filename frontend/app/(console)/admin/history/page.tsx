@@ -15,6 +15,13 @@ function Body() {
   const sum = useApi<Summary>(y ? `/api/admin/meetings/${encodeURIComponent(y)}/summary` : null);
   const { show, node } = useToastAction();
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
+  const [flt, setFlt] = useState<"all" | "open" | "closed">("all");
+  const total = list.data?.length ?? 0;
+  const needle = q.trim().toLowerCase();
+  const shown = (list.data ?? []).filter((x) =>
+    (flt === "all" || (flt === "closed") === !!x.closed_at) &&
+    (!needle || `${x.year} ${meetingTitle(x)} ${x.date}`.toLowerCase().includes(needle)));
   const m = sum.data?.meeting;
   const st = sum.data?.stats;
 
@@ -33,16 +40,30 @@ function Body() {
         <div className="adm-hist">
           {desktop ? (
             <div className="adm-card adm-hist-list">
-              <div className="adm-card-h">การประชุมทั้งหมด</div>
-              <ul>
-                {list.data?.map((x) => (
+              <div className="adm-card-h">การประชุมทั้งหมด <span className="adm-chip">{shown.length === total ? total : `${shown.length}/${total}`}</span></div>
+              <div className="adm-hist-tools">
+                <label className="adm-hist-search">
+                  <Icon name="search" size={14} className="ico-inl" />
+                  <input type="search" placeholder="ค้นหาปี / ชื่อการประชุม" aria-label="ค้นหาการประชุม" value={q} onChange={(e) => setQ(e.target.value)} />
+                </label>
+                <div className="adm-hist-filter" role="group" aria-label="กรองสถานะ">
+                  {(["all", "open", "closed"] as const).map((f) => (
+                    <button key={f} type="button" className={flt === f ? "on" : ""} aria-pressed={flt === f} onClick={() => setFlt(f)}>
+                      {f === "all" ? "ทั้งหมด" : f === "open" ? "ปัจจุบัน" : "ปิดแล้ว"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <ul className="adm-hist-scroll">
+                {shown.map((x) => (
                   <li key={x.year}>
-                    <button className={x.year === y ? "on" : ""} aria-pressed={x.year === y} onClick={() => setYear(x.year)}>
-                      <span><b>{meetingTitle(x)}</b><small>{x.date}</small></span>
-                      <span className={`adm-chip ${x.closed_at ? "adm-chip-blue" : "adm-chip-green"}`}>{x.closed_at ? "ปิดแล้ว" : "ปัจจุบัน"}</span>
+                    <button className={x.year === y ? "on" : ""} aria-pressed={x.year === y} aria-current={x.year === y ? "true" : undefined} onClick={() => setYear(x.year)}>
+                      <span className={`adm-hist-dot ${x.closed_at ? "closed" : "open"}`} title={x.closed_at ? "ปิดแล้ว" : "ปัจจุบัน"} />
+                      <span className="adm-hist-txt"><b title={meetingTitle(x)}>{meetingTitle(x)}</b><small>{x.date}{x.closed_at ? " · ปิดแล้ว" : " · ปัจจุบัน"}</small></span>
                     </button>
                   </li>
                 ))}
+                {shown.length === 0 && <li className="adm-hist-none muted">ไม่พบการประชุมที่ตรงกับเงื่อนไข</li>}
               </ul>
             </div>
           ) : (
