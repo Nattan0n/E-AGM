@@ -207,7 +207,7 @@ func (s *Server) importHolders(c echo.Context) error {
 		h := &body.Rows[i]
 		h.clean()
 		line := i + 1
-		if msg := h.validate(true); msg != "" {
+		if msg := h.validate(false); msg != "" { // holders without an ID number are allowed: they register onsite only
 			errs = append(errs, importErr{line, msg})
 		} else if first, dup := seen[h.AccountID]; dup {
 			errs = append(errs, importErr{line, fmt.Sprintf("เลขทะเบียนซ้ำกับแถวที่ %d", first)})
@@ -225,8 +225,11 @@ func (s *Server) importHolders(c echo.Context) error {
 		return err
 	}
 	defer tx.Rollback()
-	created, updated, blocked := 0, 0, []importErr{}
+	created, updated, noTax, blocked := 0, 0, 0, []importErr{}
 	for i, h := range body.Rows {
+		if strings.TrimSpace(h.TaxID) == "" {
+			noTax++
+		}
 		var cur int
 		var exists bool
 		err := tx.QueryRowContext(ctx, `SELECT COALESCE(Q_share,0) FROM holder WHERE Account_id=? FOR UPDATE`, h.AccountID).Scan(&cur)
@@ -241,8 +244,8 @@ func (s *Server) importHolders(c echo.Context) error {
 			}
 		}
 		if exists {
-			if _, err := tx.ExecContext(ctx, `UPDATE holder SET security=?,N_title=?,N_first=?,N_last=?,Q_share=?,I_tax=?,M_phone=?,I_Email=? WHERE Account_id=?`,
-				h.Security, h.Title, h.First, h.Last, h.Shares, h.TaxID, h.Phone, h.Email, h.AccountID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE holder SET security=?,N_title=?,N_first=?,N_last=?,Q_share=?,I_tax=IF(?='',I_tax,?),M_phone=?,I_Email=? WHERE Account_id=?`,
+				h.Security, h.Title, h.First, h.Last, h.Shares, h.TaxID, h.TaxID, h.Phone, h.Email, h.AccountID); err != nil {
 				return err
 			}
 			updated++
@@ -258,11 +261,11 @@ func (s *Server) importHolders(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, echo.Map{"message": "มีผู้ถือหุ้นที่แก้ไขไม่ได้", "errors": blocked})
 	}
 	if body.DryRun {
-		return c.JSON(http.StatusOK, echo.Map{"created": created, "updated": updated, "dry_run": true})
+		return c.JSON(http.StatusOK, echo.Map{"created": created, "updated": updated, "no_tax": noTax, "dry_run": true})
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
 	s.audit(c, "", "holder_import", echo.Map{"created": created, "updated": updated})
-	return c.JSON(http.StatusOK, echo.Map{"created": created, "updated": updated})
+	return c.JSON(http.StatusOK, echo.Map{"created": created, "updated": updated, "no_tax": noTax})
 }

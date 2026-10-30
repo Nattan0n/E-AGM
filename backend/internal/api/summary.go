@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -33,7 +34,23 @@ type TermResult struct {
 	SpoiledPct float64 `json:"spoiled_pct"`
 	VotedCount int     `json:"voted_count"` // holders who actively cast a vote
 	Eligible   int64   `json:"eligible"`    // shares entitled to vote on this agenda
-	Result     string  `json:"result"`      // pending | in_progress | pass | fail | info
+	// head counts / shares of registered holders entitled (EligibleHolders) or flagged "no voting right" (Novote*)
+	EligibleHolders int    `json:"eligible_holders"`
+	NovoteHolders   int64  `json:"novote_holders"`
+	NovoteShares    int64  `json:"novote_shares"`
+	Result          string `json:"result"` // pending | in_progress | pass | fail | info
+	frozen          bool   // taken from the snapshot stored when the agenda was closed
+}
+
+// termSnapshot is what is stored in termpartner.result_snapshot when an agenda is closed.
+type termSnapshot struct {
+	Onsite          Tally `json:"onsite"`
+	Online          Tally `json:"online"`
+	VotedCount      int   `json:"voted_count"`
+	Eligible        int64 `json:"eligible"`
+	EligibleHolders int   `json:"eligible_holders"`
+	NovoteHolders   int64 `json:"novote_holders"`
+	NovoteShares    int64 `json:"novote_shares"`
 }
 
 // decide applies the pass rule per agenda type.
@@ -76,7 +93,7 @@ func pct(n, d int64) float64 {
 // Registered holders who did not vote are counted as "agree" once the agenda is open/closed.
 func (s *Server) computeResults(ctx context.Context, year string) ([]TermResult, error) {
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT id,term_id,COALESCE(term_name,''),status,vote_type FROM termpartner WHERE meeting_year=?`, year)
+		`SELECT id,term_id,COALESCE(term_name,''),status,vote_type,COALESCE(result_snapshot,'') FROM termpartner WHERE meeting_year=?`, year)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +101,17 @@ func (s *Server) computeResults(ctx context.Context, year string) ([]TermResult,
 	order := []*TermResult{}
 	for rows.Next() {
 		var r TermResult
-		if err := rows.Scan(&r.ID, &r.TermID, &r.Name, &r.Status, &r.VoteType); err != nil {
+		var snap string
+		if err := rows.Scan(&r.ID, &r.TermID, &r.Name, &r.Status, &r.VoteType, &snap); err != nil {
 			rows.Close()
 			return nil, err
+		}
+		if r.Status == "closed" && snap != "" {
+			var ts termSnapshot
+			if json.Unmarshal([]byte(snap), &ts) == nil {
+				r.Onsite, r.Online, r.VotedCount, r.Eligible = ts.Onsite, ts.Online, ts.VotedCount, ts.Eligible
+				r.EligibleHolders, r.NovoteHolders, r.NovoteShares, r.frozen = ts.EligibleHolders, ts.NovoteHolders, ts.NovoteShares, true
+			}
 		}
 		byID[r.ID] = &r
 		order = append(order, &r)
@@ -95,7 +120,8 @@ func (s *Server) computeResults(ctx context.Context, year string) ([]TermResult,
 
 	on, err := s.DB.QueryContext(ctx,
 		`SELECT id_term, COALESCE(SUM(full_term-disagree_term-noc_term-fail_term),0), COALESCE(SUM(disagree_term),0),
-		        COALESCE(SUM(noc_term),0), COALESCE(SUM(fail_term),0), COALESCE(SUM(voted),0), COALESCE(SUM(full_term),0)
+		        COALESCE(SUM(noc_term),0), COALESCE(SUM(fail_term),0), COALESCE(SUM(voted),0), COALESCE(SUM(full_term),0),
+			        COALESCE(SUM(full_term>0),0)
 		 FROM regissub WHERE meeting_year=? GROUP BY id_term`, year)
 	if err != nil {
 		return nil, err
@@ -103,13 +129,13 @@ func (s *Server) computeResults(ctx context.Context, year string) ([]TermResult,
 	for on.Next() {
 		var id int
 		var t Tally
-		var voted, elig int64
-		if err := on.Scan(&id, &t.Agree, &t.Disagree, &t.Abstain, &t.Spoiled, &voted, &elig); err != nil {
+		var voted, elig, holders int64
+		if err := on.Scan(&id, &t.Agree, &t.Disagree, &t.Abstain, &t.Spoiled, &voted, &elig, &holders); err != nil {
 			on.Close()
 			return nil, err
 		}
-		if r := byID[id]; r != nil {
-			r.Onsite, r.VotedCount, r.Eligible = t, r.VotedCount+int(voted), r.Eligible+elig
+		if r := byID[id]; r != nil && !r.frozen {
+			r.Onsite, r.VotedCount, r.Eligible, r.EligibleHolders = t, r.VotedCount+int(voted), r.Eligible+elig, r.EligibleHolders+int(holders)
 		}
 	}
 	on.Close()
@@ -120,7 +146,7 @@ func (s *Server) computeResults(ctx context.Context, year string) ([]TermResult,
 		   COALESCE(SUM(CASE WHEN v.vote_choice='disagree' THEN h.Q_share END),0),
 		   COALESCE(SUM(CASE WHEN v.vote_choice='abstain' THEN h.Q_share END),0),
 		   COALESCE(SUM(CASE WHEN v.vote_choice='spoiled' THEN h.Q_share END),0),
-		   COUNT(v.id), COALESCE(SUM(h.Q_share),0)
+		   COUNT(v.id), COALESCE(SUM(h.Q_share),0), COUNT(*)
 		 FROM online_registration o
 		 JOIN holder h ON h.Account_id=o.acc_id
 		 JOIN termpartner t ON t.meeting_year=o.meeting_year
@@ -134,21 +160,51 @@ func (s *Server) computeResults(ctx context.Context, year string) ([]TermResult,
 	for ol.Next() {
 		var id int
 		var t Tally
-		var voted, elig int64
-		if err := ol.Scan(&id, &t.Agree, &t.Disagree, &t.Abstain, &t.Spoiled, &voted, &elig); err != nil {
+		var voted, elig, holders int64
+		if err := ol.Scan(&id, &t.Agree, &t.Disagree, &t.Abstain, &t.Spoiled, &voted, &elig, &holders); err != nil {
 			ol.Close()
 			return nil, err
 		}
-		if r := byID[id]; r != nil {
-			r.Online, r.VotedCount, r.Eligible = t, r.VotedCount+int(voted), r.Eligible+elig
+		if r := byID[id]; r != nil && !r.frozen {
+			r.Online, r.VotedCount, r.Eligible, r.EligibleHolders = t, r.VotedCount+int(voted), r.Eligible+elig, r.EligibleHolders+int(holders)
 		}
 	}
 	ol.Close()
 
+	// registered holders flagged "no voting right" per agenda (onsite by registered shares, online by holding)
+	for _, q := range []string{
+		`SELECT t.id, COUNT(*), COALESCE(SUM(r.mq_share),0) FROM novote n
+		   JOIN termpartner t ON t.meeting_year=n.meeting_year AND t.term_id=n.id_term
+		   JOIN regismaim r ON r.meeting_year=n.meeting_year AND r.id_acc=n.acc_novote
+		  WHERE n.meeting_year=? GROUP BY t.id`,
+		`SELECT t.id, COUNT(*), COALESCE(SUM(h.Q_share),0) FROM novote n
+		   JOIN termpartner t ON t.meeting_year=n.meeting_year AND t.term_id=n.id_term
+		   JOIN online_registration o ON o.meeting_year=n.meeting_year AND o.acc_id=n.acc_novote AND o.status IN ('verified','voted')
+		   JOIN holder h ON h.Account_id=n.acc_novote
+		  WHERE n.meeting_year=? GROUP BY t.id`,
+	} {
+		nr, err := s.DB.QueryContext(ctx, q, year)
+		if err != nil {
+			return nil, err
+		}
+		for nr.Next() {
+			var id int
+			var n, sh int64
+			if err := nr.Scan(&id, &n, &sh); err != nil {
+				nr.Close()
+				return nil, err
+			}
+			if r := byID[id]; r != nil && !r.frozen {
+				r.NovoteHolders, r.NovoteShares = r.NovoteHolders+n, r.NovoteShares+sh
+			}
+		}
+		nr.Close()
+	}
+
 	out := make([]TermResult, 0, len(order))
 	for _, r := range order {
 		if r.Status == "pending" {
-			r.Onsite, r.Online, r.Eligible, r.VotedCount = Tally{}, Tally{}, 0, 0
+			r.Onsite, r.Online, r.Eligible, r.VotedCount, r.EligibleHolders, r.NovoteHolders, r.NovoteShares = Tally{}, Tally{}, 0, 0, 0, 0, 0
 		}
 		r.Total = Tally{
 			Agree: r.Onsite.Agree + r.Online.Agree, Disagree: r.Onsite.Disagree + r.Online.Disagree,
@@ -191,6 +247,13 @@ type Stats struct {
 	QuorumPct     float64 `json:"quorum_pct"`
 	QuorumNeeded  float64 `json:"quorum_required_pct"`
 	QuorumReached bool    `json:"quorum_reached"`
+	// onsite registrations by type: self = in person, proxy = proxy holder, group = fund / juristic group
+	SelfCount   int64 `json:"self_count"`
+	SelfShares  int64 `json:"self_shares"`
+	ProxyCount  int64 `json:"proxy_count"`
+	ProxyShares int64 `json:"proxy_shares"`
+	GroupCount  int64 `json:"group_count"`
+	GroupShares int64 `json:"group_shares"`
 }
 
 func (s *Server) statsOf(ctx context.Context, m *Meeting) (*Stats, error) {
@@ -204,6 +267,15 @@ func (s *Server) statsOf(ctx context.Context, m *Meeting) (*Stats, error) {
 	q(&st.TotalShares, `SELECT COALESCE(SUM(Q_share),0) FROM holder`)
 	q(&st.OnsiteCount, `SELECT COUNT(*) FROM regismaim WHERE meeting_year=?`, m.Year)
 	q(&st.OnsiteShares, `SELECT COALESCE(SUM(mq_share),0) FROM regismaim WHERE meeting_year=?`, m.Year)
+	for _, t := range []struct {
+		where string
+		n, sh *int64
+	}{
+		{"group_type='0'", &st.SelfCount, &st.SelfShares}, {"group_type='1'", &st.ProxyCount, &st.ProxyShares},
+		{"group_type NOT IN ('0','1')", &st.GroupCount, &st.GroupShares},
+	} {
+		s.DB.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(mq_share),0) FROM regismaim WHERE meeting_year=? AND `+t.where, m.Year).Scan(t.n, t.sh)
+	}
 	q(&st.OnlineCount, `SELECT COUNT(*) FROM online_registration WHERE meeting_year=? AND status IN ('verified','voted')`, m.Year)
 	q(&st.OnlineShares, `SELECT COALESCE(SUM(h.Q_share),0) FROM online_registration o JOIN holder h ON h.Account_id=o.acc_id
 		WHERE o.meeting_year=? AND o.status IN ('verified','voted')`, m.Year)

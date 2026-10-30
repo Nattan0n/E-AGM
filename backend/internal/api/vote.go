@@ -106,6 +106,9 @@ func (s *Server) voteOnsite(c echo.Context) error {
 		return err
 	}
 	d := echo.Map{"term": r.TermID, "choice": r.Choice, "shares": n, "by": actor(c)}
+	if sp := r.Split; sp != nil {
+		d["split"] = echo.Map{"agree": sp.Agree, "disagree": sp.Disagree, "abstain": sp.Abstain, "spoiled": sp.Spoiled}
+	}
 	if wasVoted {
 		d["previous"] = echo.Map{"agree": full - pd - pn - pf, "disagree": pd, "abstain": pn, "spoiled": pf, "by": prevBy.String}
 	}

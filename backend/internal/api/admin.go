@@ -113,7 +113,7 @@ func (s *Server) updateUser(c echo.Context) error {
 			return err
 		}
 	}
-	s.audit(c, "", "user_update", echo.Map{"id": id, "role": r.Role, "active": active})
+	s.audit(c, "", "user_update", echo.Map{"id": id, "role": r.Role, "active": active, "password_reset": r.Password != ""})
 	return c.NoContent(http.StatusNoContent)
 }
 

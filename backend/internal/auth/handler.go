@@ -13,11 +13,12 @@ import (
 
 // Claims is shared by staff/admin tokens (UserID set) and holder tokens (AccID/RegID set).
 type Claims struct {
-	UserID int    `json:"uid,omitempty"`
-	Role   string `json:"role"`
-	Name   string `json:"name,omitempty"`
-	AccID  string `json:"acc,omitempty"`
-	RegID  int    `json:"reg,omitempty"`
+	UserID   int    `json:"uid,omitempty"`
+	Role     string `json:"role"`
+	Name     string `json:"name,omitempty"`
+	Username string `json:"usr,omitempty"`
+	AccID    string `json:"acc,omitempty"`
+	RegID    int    `json:"reg,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -85,7 +86,7 @@ func (h *Handler) Login(c echo.Context) error {
 		h.audit(c, "login_fail", map[string]any{"username": req.Username})
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 	}
-	tok, err := Sign(h.Secret, &Claims{UserID: id, Role: role, Name: name}, 12*time.Hour)
+	tok, err := Sign(h.Secret, &Claims{UserID: id, Role: role, Name: name, Username: req.Username}, 12*time.Hour)
 	if err != nil {
 		return err
 	}

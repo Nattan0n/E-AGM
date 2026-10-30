@@ -110,7 +110,10 @@ func (s *Server) onlineRegister(c echo.Context) error {
 	} else if err != nil {
 		return err
 	}
-	if subtle.ConstantTimeCompare([]byte(nonDigit.ReplaceAllString(tax, "")), []byte(nonDigit.ReplaceAllString(r.IDCard, ""))) != 1 {
+	// A register entry without an ID number (or an input without digits) can never be verified: refuse instead of
+	// letting "" == "" pass, otherwise anyone knowing the account id could register with their own phone / e-mail.
+	taxDigits, idDigits := nonDigit.ReplaceAllString(tax, ""), nonDigit.ReplaceAllString(r.IDCard, "")
+	if taxDigits == "" || idDigits == "" || subtle.ConstantTimeCompare([]byte(taxDigits), []byte(idDigits)) != 1 {
 		return s.failIdentity(c, r.AccountID, mismatch)
 	}
 	// Where the register already holds a contact, the OTP target must match it.

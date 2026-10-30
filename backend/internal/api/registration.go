@@ -34,11 +34,12 @@ func onlineActive(ctx context.Context, d execer, year, acc string) bool {
 	return n > 0
 }
 
-// prefillVotes creates one regissub row per agenda (full_term = shares, 0 where the holder is in novote).
+// prefillVotes creates one regissub row per agenda (full_term = shares, 0 where the holder is in novote or the
+// agenda is already closed - a holder who registers late takes no part in an agenda whose result is final).
 func prefillVotes(ctx context.Context, tx execer, year, acc string, shares int) error {
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO regissub(meeting_year,id_term,id_acc,full_term)
-		SELECT t.meeting_year, t.id, ?, IF(EXISTS(SELECT 1 FROM novote n WHERE n.meeting_year=t.meeting_year
+		SELECT t.meeting_year, t.id, ?, IF(t.status='closed' OR EXISTS(SELECT 1 FROM novote n WHERE n.meeting_year=t.meeting_year
 		       AND n.acc_novote=? AND n.id_term=t.term_id), 0, ?)
 		FROM termpartner t WHERE t.meeting_year=?`, acc, acc, shares, year)
 	return err

@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"regexp"
 	"sort"
@@ -261,8 +262,11 @@ func (s *Server) setAgendaStatus(c echo.Context) error {
 		}
 		for _, r := range rs {
 			if r.ID == cur.ID {
-				if _, err := s.DB.ExecContext(ctx, `UPDATE termpartner SET relateshare=?,countshare=? WHERE id=?`,
-					r.Eligible, r.VotedCount, cur.ID); err != nil {
+				snap, _ := json.Marshal(termSnapshot{Onsite: r.Onsite, Online: r.Online, VotedCount: r.VotedCount, Eligible: r.Eligible,
+					EligibleHolders: r.EligibleHolders, NovoteHolders: r.NovoteHolders, NovoteShares: r.NovoteShares})
+				// freeze the result: later registrations / cancellations no longer change a closed agenda
+				if _, err := s.DB.ExecContext(ctx, `UPDATE termpartner SET relateshare=?,countshare=?,result_snapshot=? WHERE id=?`,
+					r.Eligible, r.VotedCount, string(snap), cur.ID); err != nil {
 					return err
 				}
 			}

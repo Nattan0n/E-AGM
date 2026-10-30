@@ -8,3 +8,7 @@ obj/
 .env.local
 .env*.local
 .vs/
+
+# real exported data - never commit
+*.zip
+eregist_db*.sql

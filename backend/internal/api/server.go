@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -87,6 +88,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	g.GET("/vote/onsite/:acc", s.holderVotes)
 	g.GET("/late", s.listLate)
 	g.GET("/novote", s.listNovote)
+	g.GET("/vote/roll", s.voteRoll)
 
 	// ---- staff / admin (write) ----
 	w := e.Group("/api", jwtMW, s.activeUser, staffOnly)
@@ -139,6 +141,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	h.POST("/logout", s.onlineLogout)
 	h.PUT("/vote-mode", s.onlineSetMode)
 	h.GET("/receipt", s.onlineReceipt)
+	h.GET("/results", s.onlineResults)
 }
 
 // ---- helpers ----
@@ -150,8 +153,9 @@ func (s *Server) audit(c echo.Context, acc, action string, detail any) {
 			if _, has := mp["by"]; !has {
 				mp["by"] = cl.Name
 			}
+			mp["by_id"], mp["by_user"] = cl.UserID, cl.Username
 		} else {
-			detail = echo.Map{"by": cl.Name, "data": detail}
+			detail = echo.Map{"by": cl.Name, "by_id": cl.UserID, "by_user": cl.Username, "data": detail}
 		}
 	}
 	b, _ := json.Marshal(detail)
@@ -163,9 +167,11 @@ func (s *Server) audit(c echo.Context, acc, action string, detail any) {
 	if len(ua) > 255 {
 		ua = ua[:255]
 	}
-	s.DB.ExecContext(c.Request().Context(),
+	if _, err := s.DB.ExecContext(c.Request().Context(),
 		`INSERT INTO audit_log(acc_id,action,detail,ip_address,user_agent,meeting_year) VALUES(?,?,?,?,?,?)`,
-		nullStr(acc), action, string(b), c.RealIP(), ua, nullStr(year))
+		nullStr(acc), action, string(b), c.RealIP(), ua, nullStr(year)); err != nil {
+		log.Printf("AUDIT WRITE FAILED action=%s acc=%s detail=%s: %v", action, acc, b, err) // never lose it silently
+	}
 }
 
 // activeUser re-checks the staff/admin account on every request, so disabling a user or changing

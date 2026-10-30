@@ -12,29 +12,30 @@ import (
 )
 
 type Meeting struct {
-	ID            int        `json:"id"`
-	Year          string     `json:"year"`
-	Detail        string     `json:"detail"`
-	Date          string     `json:"date"`
-	ClosedAt      *time.Time `json:"closed_at"`
-	OnlineEnabled bool       `json:"online_enabled"`
-	RoomOpen      bool       `json:"room_open"`     // online room opened by an admin: holders may see the agendas
-	AdvanceEntry  bool       `json:"advance_entry"` // staff may key onsite votes before an agenda is opened
-	QuorumPct     float64    `json:"quorum_pct"`
-	DocumentsURL  string     `json:"documents_url"` // link to the invitation / meeting documents shown to holders
-	Announcement  string     `json:"announcement"`  // short notice shown to holders in the waiting room
+	ID               int        `json:"id"`
+	Year             string     `json:"year"`
+	Detail           string     `json:"detail"`
+	Date             string     `json:"date"`
+	ClosedAt         *time.Time `json:"closed_at"`
+	OnlineEnabled    bool       `json:"online_enabled"`
+	RoomOpen         bool       `json:"room_open"`     // online room opened by an admin: holders may see the agendas
+	AdvanceEntry     bool       `json:"advance_entry"` // staff may key onsite votes before an agenda is opened
+	QuorumPct        float64    `json:"quorum_pct"`
+	DocumentsURL     string     `json:"documents_url"`     // link to the invitation / meeting documents shown to holders
+	Announcement     string     `json:"announcement"`      // short notice shown to holders in the waiting room
+	ResultsPublished bool       `json:"results_published"` // holders may see the running / closed totals (admin switch)
 }
 
 func (m *Meeting) Locked() bool { return m.ClosedAt != nil }
 
-const meetingCols = `id,codemaster,COALESCE(detailmaster,''),COALESCE(datemaster,''),closed_at,online_enabled,advance_entry,room_open,quorum_pct,COALESCE(documents_url,''),COALESCE(announcement,'')`
+const meetingCols = `id,codemaster,COALESCE(detailmaster,''),COALESCE(datemaster,''),closed_at,online_enabled,advance_entry,room_open,quorum_pct,COALESCE(documents_url,''),COALESCE(announcement,''),results_published`
 
 type scanner interface{ Scan(...any) error }
 
 func scanMeeting(r scanner) (*Meeting, error) {
 	var m Meeting
 	var closed sql.NullTime
-	if err := r.Scan(&m.ID, &m.Year, &m.Detail, &m.Date, &closed, &m.OnlineEnabled, &m.AdvanceEntry, &m.RoomOpen, &m.QuorumPct, &m.DocumentsURL, &m.Announcement); err != nil {
+	if err := r.Scan(&m.ID, &m.Year, &m.Detail, &m.Date, &closed, &m.OnlineEnabled, &m.AdvanceEntry, &m.RoomOpen, &m.QuorumPct, &m.DocumentsURL, &m.Announcement, &m.ResultsPublished); err != nil {
 		return nil, err
 	}
 	if closed.Valid {
@@ -98,14 +99,15 @@ func (s *Server) listMeetings(c echo.Context) error {
 }
 
 type meetingReq struct {
-	Year          string  `json:"year"`
-	Detail        string  `json:"detail"`
-	Date          string  `json:"date"`
-	OnlineEnabled *bool   `json:"online_enabled"`
-	AdvanceEntry  *bool   `json:"advance_entry"`
-	QuorumPct     float64 `json:"quorum_pct"`
-	DocumentsURL  *string `json:"documents_url"`
-	Announcement  *string `json:"announcement"`
+	Year             string  `json:"year"`
+	Detail           string  `json:"detail"`
+	Date             string  `json:"date"`
+	OnlineEnabled    *bool   `json:"online_enabled"`
+	AdvanceEntry     *bool   `json:"advance_entry"`
+	QuorumPct        float64 `json:"quorum_pct"`
+	DocumentsURL     *string `json:"documents_url"`
+	Announcement     *string `json:"announcement"`
+	ResultsPublished *bool   `json:"results_published"`
 }
 
 func (s *Server) updateMeeting(c echo.Context) error {
@@ -134,6 +136,10 @@ func (s *Server) updateMeeting(c echo.Context) error {
 	if r.AdvanceEntry != nil {
 		advance = *r.AdvanceEntry
 	}
+	published := m.ResultsPublished
+	if r.ResultsPublished != nil {
+		published = *r.ResultsPublished
+	}
 	docs, note := m.DocumentsURL, m.Announcement
 	if r.DocumentsURL != nil {
 		docs = strings.TrimSpace(*r.DocumentsURL)
@@ -151,8 +157,8 @@ func (s *Server) updateMeeting(c echo.Context) error {
 		}
 	}
 	if _, err := s.DB.ExecContext(c.Request().Context(),
-		`UPDATE master SET detailmaster=?,datemaster=?,online_enabled=?,advance_entry=?,quorum_pct=?,documents_url=?,announcement=? WHERE id=?`,
-		r.Detail, r.Date, online, advance, r.QuorumPct, docs, note, m.ID); err != nil {
+		`UPDATE master SET detailmaster=?,datemaster=?,online_enabled=?,advance_entry=?,quorum_pct=?,documents_url=?,announcement=?,results_published=? WHERE id=?`,
+		r.Detail, r.Date, online, advance, r.QuorumPct, docs, note, published, m.ID); err != nil {
 		return err
 	}
 	s.audit(c, "", "meeting_update", r)
