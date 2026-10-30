@@ -55,8 +55,14 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .kpi-label { font-size: 12px; color: var(--ink-muted); }
 .bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; display: flex; }
 .bar > span { display: block; height: 100%; }
-.modal-back { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 200; }
-.modal { background: var(--glass-strong); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);  border-radius: 14px; padding: 20px; width: 100%; max-width: 440px; max-height: 90vh; overflow: auto;  box-shadow: var(--glass-shadow); }
+/* Popups (dialogs / sheets) are SOLID: the frosted --glass-* surfaces let the page behind show through the text. One place for all of them. */
+:root {
+  --modal-bg: #fff;
+  --scrim: rgba(15, 23, 42, .62);
+  --modal-shadow: 0 24px 64px rgba(15, 23, 42, .38), 0 4px 14px rgba(15, 23, 42, .16);
+}
+.modal-back { position: fixed; inset: 0; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 200; }
+.modal { background: var(--modal-bg); border-radius: 14px; padding: 20px; width: 100%; max-width: 440px; max-height: 90vh; overflow: auto; box-shadow: var(--modal-shadow); }
 .modal h3 { margin-bottom: 8px; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 8px; z-index: 300; font-size: 13px; }
@@ -281,8 +287,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .adm-soon p { font-size: 12px; } .adm-soon .btn { grid-column: 2 / -1; justify-self: start; margin-top: 4px; }
 
 /* modal: bottom sheet (mobile) / centered dialog (web) */
-.adm-modal-back { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
-.adm-modal { background: var(--glass-strong); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);  width: 100%; max-width: 560px; border-radius: 22px 22px 0 0; padding: 8px 18px calc(20px + env(safe-area-inset-bottom)); max-height: 90vh; overflow: auto; animation: adm-up .22s ease-out;  box-shadow: var(--glass-shadow); }
+.adm-modal-back { position: fixed; inset: 0; background: var(--scrim); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
+.adm-modal { background: var(--modal-bg); width: 100%; max-width: 560px; border-radius: 22px 22px 0 0; padding: 8px 18px calc(20px + env(safe-area-inset-bottom)); max-height: 90vh; overflow: auto; animation: adm-up .22s ease-out; box-shadow: var(--modal-shadow); }
 .adm-modal h3 { font-size: 17px; margin-bottom: 10px; }
 .adm-grab { display: block; width: 40px; height: 4px; border-radius: 2px; background: #cbd5e1; margin: 4px auto 14px; }
 .adm-modal-actions, .adm-modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
@@ -488,7 +494,7 @@ main > [data-wrap][data-wrap] { animation: none; }
 .sx-open .sx-chev { transform: rotate(180deg); color: var(--primary); }
 .adm-fl .sx-btn { flex: 1; min-width: 130px; }
 .sx-menu { position: fixed; z-index: 1000; margin: 0; padding: 6px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
-  background: rgba(255, 255, 255, .97); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  background: var(--modal-bg);
   border: 1px solid rgba(15, 35, 100, .1); border-radius: 14px; box-shadow: 0 18px 40px rgba(15, 35, 100, .2), 0 2px 8px rgba(15, 35, 100, .08);
   animation: sxIn .14s ease-out; font-size: 14px; }
 .sx-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer; color: var(--ink); }
