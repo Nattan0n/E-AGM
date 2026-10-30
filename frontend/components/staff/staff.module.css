@@ -36,6 +36,14 @@
 .lbl { display: block; font-size: 12px; font-weight: 500; color: var(--ink-muted); margin-bottom: 6px; }
 .searchRow { display: flex; gap: 10px; align-items: center; }
 .sel { height: 48px; border: 1.5px solid var(--border); border-radius: 12px; padding: 0 12px; background: #fff; min-width: 120px; }
+/* The themed Select button is width:100% (globals.css .sx-btn). Left alone in this flex row it takes the whole row and squeezes the
+   search box to nothing, so give it a fixed width here. On phones it drops under the search box at full width instead. */
+.searchRow .sel { flex: 0 0 176px; width: 176px; }
+@media (max-width: 520px) {
+  .searchRow { flex-wrap: wrap; }
+  .searchRow .sbox { flex: 1 1 100%; }
+  .searchRow .sel { flex: 1 1 100%; width: 100%; }
+}
 
 /* ---------- buttons ---------- */
 .btn { height: 44px; padding: 0 18px; border-radius: 12px; border: 1.5px solid var(--border); background: #fff; color: var(--ink); font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }

@@ -85,7 +85,9 @@ function Ballots({ toast }: Ctx) {
     </>
   );
 
-  const votable = (agendas ?? []).filter((a) => a.vote_type !== "info");
+  // a ballot is only useful while the agenda can still be voted on: skip acknowledgement-only and already-closed agendas
+  const votable = (agendas ?? []).filter((a) => a.vote_type !== "info" && a.status !== "closed");
+  const closedSkipped = (agendas ?? []).filter((a) => a.vote_type !== "info" && a.status === "closed").length;
   const ready = !!people && people.length > 0 && !!agendas;
   const total = people ? people.length * votable.length : 0;
   const title = meeting?.detail ?? "ประชุมสามัญผู้ถือหุ้น";
@@ -97,7 +99,7 @@ function Ballots({ toast }: Ctx) {
           <p><b>{group?.name ?? `กลุ่ม #${gid}`}</b> · สมาชิก {members?.length ?? "-"} ราย</p>
         ) : h && <HolderCard h={h} />}
         {!gid && h && h.status !== "onsite" && <p className={styles.errText}>ผู้ถือหุ้นรายนี้ยังไม่ได้ลงทะเบียน Onsite — ลงทะเบียนหรือกด &quot;รับเข้าห้อง&quot; ก่อนจึงจะพิมพ์บัตรได้</p>}
-        {ready && <p className={styles.muted}>พิมพ์บัตรลงคะแนน {total} ใบ ({people!.length} ราย × {votable.length} วาระ) · ข้ามวาระรับทราบ · ผู้ไม่มีสิทธิ์ในวาระใดจะมีลายน้ำ &quot;ไม่มีสิทธิ์ออกเสียง&quot; · 1 วาระต่อ 1 ใบ</p>}
+        {ready && <p className={styles.muted}>พิมพ์บัตรลงคะแนน {total} ใบ ({people!.length} ราย × {votable.length} วาระ) · ข้ามวาระรับทราบ{closedSkipped > 0 ? ` และวาระที่ปิดโหวตแล้ว (${closedSkipped} วาระ)` : ""} · ผู้ไม่มีสิทธิ์ในวาระใดจะมีลายน้ำ &quot;ไม่มีสิทธิ์ออกเสียง&quot; · 1 วาระต่อ 1 ใบ</p>}
         <label className={b.chk}><input type="checkbox" checked={slip} onChange={(e) => setSlip(e.target.checked)} /> พิมพ์ใบลงทะเบียนเข้าประชุม (ให้ผู้ถือหุ้นลงชื่อ) ด้วย</label>
       </div>
       <div className={`${styles.actionBar} ${b.noprint}`}>

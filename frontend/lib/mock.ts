@@ -101,10 +101,13 @@ function termResult(a: Agenda): TermResult {
   const denom = total.agree + total.disagree + (a.vote_type === "special" ? total.abstain : 0);
   const need = a.vote_type === "special" ? 2 / 3 : a.vote_type === "unanimous" ? 1 : 0.5;
   const result: TermResult["result"] = a.vote_type === "info" ? "info" : a.status !== "closed" ? (a.status === "open" ? "in_progress" : "pending") : denom && total.agree / denom > need - 1e-9 && total.agree / denom >= need ? "pass" : "fail";
+  // holders flagged "no voting right" on this agenda are not entitled
+  const noRight = new Set(s.novote.filter((n) => n.term_id === a.term_id).map((n) => n.account_id));
+  const entitled = Object.entries(s.regs).filter(([id]) => !noRight.has(id));
   return {
     id: a.id, term_id: a.term_id, name: a.name, status: a.status, vote_type: a.vote_type, onsite, online, total,
     agree_pct: p(total.agree), disagree_pct: p(total.disagree), abstain_pct: p(total.abstain), spoiled_pct: p(total.spoiled),
-    voted_count: rows.length, eligible: Object.keys(s.regs).length, result,
+    voted_count: rows.length, eligible: entitled.reduce((x, [, r]) => x + r.shares, 0), eligible_holders: entitled.length, result,
   };
 }
 const summary = (): Summary => ({ meeting: S().meeting, stats: stats(), terms: S().agendas.map(termResult) });

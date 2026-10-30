@@ -94,7 +94,8 @@ function Vote({ canWrite, toast }: Ctx) {
   if (agendas && agendas.length === 0) return <p className={styles.empty}>ยังไม่มีวาระ</p>;
   if (!agendas || !agenda) return null;
 
-  const progress = tr && tr.eligible > 0 ? Math.min(100, (tr.voted_count / tr.eligible) * 100) : 0;
+  const entitled = tr?.eligible_holders ?? 0; // head count of holders entitled to vote (0 = none registered / not reported)
+  const progress = tr && entitled > 0 ? Math.min(100, (tr.voted_count / entitled) * 100) : 0;
   const voteOf = (t: string) => history?.find((v) => v.term_id === t);
 
   return (
@@ -111,10 +112,10 @@ function Vote({ canWrite, toast }: Ctx) {
           </div>
           {tr && agenda.vote_type !== "info" && (
             <>
-              <div className={styles.progress} role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="ความคืบหน้า"><span style={{ width: `${progress}%` }} /></div>
+              {entitled > 0 && <div className={styles.progress} role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="ความคืบหน้า"><span style={{ width: `${progress}%` }} /></div>}
               <div className={styles.row} style={{ justifyContent: "space-between" }}>
-                <span className={styles.muted}>ลงคะแนนแล้ว <b style={{ color: "var(--ink)" }}>{fmt(tr.voted_count)}</b> จาก {fmt(tr.eligible)} ราย</span>
-                <span className={styles.muted}>{Math.round(progress)}%</span>
+                <span className={styles.muted}>ลงคะแนนแล้ว <b style={{ color: "var(--ink)" }}>{fmt(tr.voted_count)}</b>{entitled > 0 ? <> จาก {fmt(entitled)}</> : null} ราย</span>
+                {entitled > 0 && <span className={styles.muted}>{Math.round(progress)}%</span>}
               </div>
             </>
           )}

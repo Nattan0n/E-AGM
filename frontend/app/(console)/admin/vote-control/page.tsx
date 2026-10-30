@@ -45,7 +45,7 @@ function Body() {
             {opened.length === 0 ? (
               <div className="adm-card adm-card-b adm-vc-idle"><span aria-hidden><Icon name="vote" size={36} /></span><b>ไม่มีวาระที่เปิดลงคะแนนอยู่</b><p className="muted">เลือกวาระจากรายการแล้วกดสวิตช์เพื่อเปิดโหวต</p></div>
             ) : opened.map((t) => {
-              const left = Math.max(0, t.eligible - t.voted_count);
+              const left = t.eligible_holders > 0 ? Math.max(0, t.eligible_holders - t.voted_count) : null; // head counts, not shares
               return (
                 <div key={t.id} className="adm-card adm-vc-now">
                   <span className="adm-live"><i aria-hidden />กำลังลงคะแนนอยู่</span>
@@ -59,7 +59,7 @@ function Body() {
                   <ResultBar t={t} />
                   <div className="adm-vc-stats">
                     <span>ลงคะแนนแล้ว <b>{fmt(t.voted_count)}</b> ราย</span>
-                    <span>เหลือ <b>{fmt(left)}</b> ราย</span>
+                    {left !== null && <span>เหลือ <b>{fmt(left)}</b> ราย</span>}
                     <span>หุ้นเห็นด้วย <b>{fmt(t.total.agree)}</b></span>
                   </div>
                   <button className="adm-closebtn" disabled={busy || closed} onClick={() => openClose(t)}>■ ปิดการลงคะแนน วาระที่ {t.term_id}</button>
@@ -77,7 +77,7 @@ function Body() {
                   <span className="adm-num">{t.term_id}</span>
                   <div className="adm-vrow-m">
                     <b>{t.name}</b>
-                    <small>{t.status === "pending" ? "รอดำเนินการ" : <><ResultChip t={t} /> <span className="muted">{fmt(t.voted_count)}/{fmt(t.eligible)} ราย</span></>}</small>
+                    <small>{t.status === "pending" ? "รอดำเนินการ" : <><ResultChip t={t} /> <span className="muted">{fmt(t.voted_count)}{t.eligible_holders > 0 ? `/${fmt(t.eligible_holders)}` : ""} ราย</span></>}</small>
                   </div>
                   <div className="adm-vrow-s">
                     {t.status === "closed" && <span className="adm-vstate"><Icon name="check" size={13} className="ico-inl" />ปิดแล้ว</span>}

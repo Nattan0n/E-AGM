@@ -46,6 +46,8 @@ const COLS: Record<string, keyof Form | "security"> = {
   tax_id: "tax_id", "เลขบัตร": "tax_id", "เลขบัตรประชาชน": "tax_id",
   phone: "phone", "เบอร์โทร": "phone", "โทรศัพท์": "phone",
   email: "email", "อีเมล": "email",
+  // column names of the legacy Eregist `holder` table, so a CSV exported from it imports as-is (headers are matched lower-case)
+  n_title: "title", n_first: "first", n_last: "last", q_share: "shares", i_tax: "tax_id", m_phone: "phone", i_email: "email",
 };
 
 function HolderModal({ h, onClose, onSaved }: { h: HolderAdminRow | null; onClose: () => void; onSaved: () => void }) {
@@ -123,6 +125,9 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
     } finally { setBusy(false); }
   }
 
+  // holders without any digit in their ID number cannot pass the online identity check (they register onsite)
+  const noTax = rows ? rows.filter((r) => !/\d/.test(String(r.tax_id ?? ""))).length : 0;
+
   return (
     <Modal title="นำเข้าทะเบียนผู้ถือหุ้น (CSV)" onClose={() => !busy && onClose()}
       actions={<><button className="btn" disabled={busy} onClick={onClose}>ปิด</button>
@@ -130,10 +135,12 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
       <p className="muted" style={{ fontSize: 13 }}>ไฟล์ CSV (UTF-8) แถวแรกเป็นหัวคอลัมน์: <code>account_id, title, first, last, shares, tax_id, phone, email</code> (ไทยได้: เลขทะเบียน, คำนำหน้า, ชื่อ, นามสกุล, จำนวนหุ้น, เลขบัตร, เบอร์โทร, อีเมล) — เลขทะเบียนที่มีอยู่แล้วจะถูกอัปเดต ถ้ามีแถวผิดแม้แถวเดียวจะไม่นำเข้าเลย</p>
       <div className="field"><label className="label" htmlFor="imp-f">เลือกไฟล์</label><input id="imp-f" type="file" accept=".csv,text/csv" onChange={onFile} /></div>
       {name && rows && <p style={{ fontSize: 13 }}>{name}: {fmt(rows.length)} แถว</p>}
+      {noTax > 0 && <p className="muted" style={{ fontSize: 13 }}><Icon name="warn" size={14} className="ico-inl" /> {fmt(noTax)} ราย ไม่มีเลขบัตรประชาชน — ลงทะเบียนออนไลน์ไม่ได้ (ลงทะเบียนหน้างานได้ตามปกติ)</p>}
       {preview && <p className="c-green" role="status"><b>ตรวจแล้วผ่าน:</b> จะเพิ่มใหม่ {fmt(preview.created)} · อัปเดต {fmt(preview.updated)} — กด &quot;ยืนยันนำเข้า&quot;</p>}
       {errs.length > 0 && (
         <div role="alert" className="error-text" style={{ maxHeight: 180, overflow: "auto" }}>
           {errs.map((x, i) => <div key={i}>{x.row > 0 ? `แถวที่ ${x.row}: ` : ""}{x.msg}</div>)}
+          {errs.length >= 50 && <div><b>แสดงเฉพาะ 50 รายการแรก — อาจมีข้อผิดพลาดอื่นอีก แก้ไขแล้วลองใหม่</b></div>}
         </div>
       )}
       {node}

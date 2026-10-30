@@ -16,7 +16,10 @@ export interface TermResult {
   id: number; term_id: string; name: string; status: AgendaStatus; vote_type: VoteType;
   onsite: Tally; online: Tally; total: Tally;
   agree_pct: number; disagree_pct: number; abstain_pct: number; spoiled_pct: number;
-  voted_count: number; eligible: number; result: "pending" | "in_progress" | "pass" | "fail" | "info";
+  voted_count: number; // holders who actively cast a vote
+  eligible: number; // SHARES entitled to vote on this agenda
+  eligible_holders: number; // HOLDERS (head count) entitled to vote on this agenda; use this for "x of y ราย"
+  result: "pending" | "in_progress" | "pass" | "fail" | "info";
 }
 export interface Summary { meeting: Meeting; stats: Stats; terms: TermResult[] }
 export interface HolderItem {

@@ -33,6 +33,8 @@ export default function OnlineRegister() {
     e.preventDefault();
     setError("");
     if (!accountId.trim() || !idCard.trim()) { setError("กรุณากรอกข้อมูลให้ครบ"); return; }
+    // the server compares digits only, so a value without any digit can never be a valid ID / passport number
+    if (!/\d/.test(idCard)) { setError("เลขประจำตัวประชาชน / Passport ต้องมีตัวเลข"); return; }
     if (channel === "sms" && !phone.trim()) { setError("กรุณากรอกเบอร์โทรศัพท์"); return; }
     if (channel === "email" && !email.trim()) { setError("กรุณากรอกอีเมล"); return; }
     setBusy(true);
