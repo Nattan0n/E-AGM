@@ -38,7 +38,7 @@ function barPath(w: number, cx: number | null): string {
  * `active` is the slot index, or -1 for a flat bar. Slot `menu` renders as a button.
  */
 export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, activeLabelIcon }: {
-  slots: DockSlot[]; active: number; menuKey: string; open: boolean; onMenu: () => void; onNavigate: () => void;
+  slots: DockSlot[]; active: number; menuKey: string; open: boolean; onMenu: () => void; onNavigate: (href: string) => void;
   activeLabelIcon?: IconName;
 }) {
   const navRef = useRef<HTMLElement>(null);
@@ -115,7 +115,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
           return s.key === menuKey ? (
             <button key={s.key} type="button" className={`${styles.dockSlot} ${on ? styles.dockOn : ""}`} onClick={onMenu} aria-expanded={open} aria-label={open ? "ปิดเมนู" : "เมนูทั้งหมด"}>{inner}</button>
           ) : (
-            <Link key={s.key} href={s.href!} className={`${styles.dockSlot} ${on ? styles.dockOn : ""}`} onClick={onNavigate}>{inner}</Link>
+            <Link key={s.key} href={s.href!} className={`${styles.dockSlot} ${on ? styles.dockOn : ""}`} onClick={() => onNavigate(s.href!)}>{inner}</Link>
           );
         })}
       </div>

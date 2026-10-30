@@ -1,7 +1,7 @@
 "use client";
 import { Icon } from "@/components/brand/Icon";
 import { ReactNode, useCallback, useState } from "react";
-import { Shell, ADMIN_NAV } from "@/components/Shell";
+import { usePageTitle } from "@/components/Shell";
 import { errMsg } from "@/lib/api";
 import { useApi, useStaffGuard, useToast } from "@/lib/hooks";
 import type { AgendaStatus, Meeting, TermResult, VoteType } from "@/lib/types";
@@ -19,11 +19,12 @@ export const RESULT_BADGE: Record<TermResult["result"], string> = {
 };
 export const COLORS = { agree: "#22c55e", disagree: "#ef4444", abstain: "#f59e0b", spoiled: "#94a3b8" } as const;
 
-/** Admin-only page frame: guard + Shell. Children mount only once the session is known. */
+/** Admin-only page frame (the Shell lives in app/(console)/layout.tsx): role guard + page title. Children mount only once the session is known. */
 export function AdminFrame({ title, children }: { title: string; children: ReactNode }) {
   const s = useStaffGuard(["admin"]);
+  usePageTitle(title);
   if (!s) return null;
-  return <Shell session={s} nav={ADMIN_NAV} title={title}>{children}</Shell>;
+  return <>{children}</>;
 }
 
 export function PageHead({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {

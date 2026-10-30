@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, ReactNode, useEffect, useRef, useState } from "react";
+import { createContext, Fragment, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { MobileDock, DockSlot } from "./MobileDock";
 import { clearSession, StaffSession } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -34,8 +34,14 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/settings", label: "ตั้งค่า", icon: "settings" },
 ];
 
-// Kept across page changes (each page re-mounts the Shell) so the meeting name does not flash back to "E-AGM".
 let meetingCache: Meeting | null = null;
+
+const TitleCtx = createContext<(t: string) => void>(() => {});
+/** Pages call this to set the title shown in the (shared, always mounted) Shell header. */
+export function usePageTitle(title: string) {
+  const set = useContext(TitleCtx);
+  useEffect(() => { set(title); }, [set, title]);
+}
 
 const ROLE_LABEL = { admin: "Administrator", staff: "เจ้าหน้าที่ทะเบียน", viewer: "ผู้ชมผลการประชุม" } as const;
 
@@ -58,7 +64,8 @@ function fanLayout(n: number): { x: number; y: number }[] {
  *  - Web:    navy sidebar (brand, nav, user + logout) and a top bar with role badge + meeting name
  *  - Mobile: blue app bar with page title, bottom tab bar
  */
-export function Shell({ session, nav, title, children }: { session: StaffSession; nav: NavItem[]; title: string; children: ReactNode }) {
+export function Shell({ session, nav, children }: { session: StaffSession; nav: NavItem[]; children: ReactNode }) {
+  const [title, setTitle] = useState("");
   const path = usePathname();
   const router = useRouter();
   const { data: fetched } = useApi<Meeting>("/api/meeting");
@@ -92,6 +99,10 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
     mo.observe(main, { childList: true, subtree: true });
     return () => mo.disconnect();
   }, []);
+  // The page we are heading to: the dock highlights it straight away instead of flashing back to the old page's tab until the route has changed.
+  const [nextPath, setNextPath] = useState<string | null>(null);
+  useEffect(() => { setNextPath(null); }, [path]);
+  const cur = nextPath ?? path;
   const [fanOpen, setFanOpen] = useState(false);
   const [fanMounted, setFanMounted] = useState(false); // stays mounted briefly after closing so the collapse animation can play
   useEffect(() => {
@@ -117,7 +128,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
   const pinHrefs = session.role === "admin" ? ["/admin", "/admin/vote-control", "/staff", "/staff/vote"] : ["/staff", "/staff/register", "/staff/vote", "/staff/summary"];
   const pinned = pinHrefs.map((h) => items.find((i) => i.href === h)).filter((i): i is NavItem => !!i);
   const menu = items.filter((i) => !pinHrefs.includes(i.href));
-  const inMenu = menu.some((m) => (m.href === "/staff" || m.href === "/admin" ? path === m.href : path.startsWith(m.href)));
+  const inMenu = menu.some((m) => (m.href === "/staff" || m.href === "/admin" ? cur === m.href : cur.startsWith(m.href)));
   const fan = fanLayout(menu.length);
   const MENU_KEY = "__menu";
   const dockSlots: DockSlot[] = [
@@ -125,9 +136,9 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
     { key: MENU_KEY, label: "เมนู", icon: "menu" as const },
     ...pinned.slice(2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href })),
   ];
-  const pinnedActive = dockSlots.findIndex((d) => d.href && (d.href === "/staff" || d.href === "/admin" ? path === d.href : path.startsWith(d.href)));
+  const pinnedActive = dockSlots.findIndex((d) => d.href && (d.href === "/staff" || d.href === "/admin" ? cur === d.href : cur.startsWith(d.href)));
   const dockActive = fanOpen ? 2 : pinnedActive >= 0 ? pinnedActive : inMenu ? 2 : -1;
-  const active = (h: string) => (h === "/staff" || h === "/admin" ? path === h : path.startsWith(h));
+  const active = (h: string) => (h === "/staff" || h === "/admin" ? cur === h : cur.startsWith(h));
   const logout = () => { clearSession("staff"); router.replace("/"); };
   const display = session.name || session.username;
   const initial = display.trim().charAt(0).toUpperCase();
@@ -171,7 +182,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
         <span className={styles.pageTitle}>{title}</span>
       </header>
 
-      <main ref={mainRef} className={styles.main}>{children}</main>
+      <main ref={mainRef} className={styles.main}><TitleCtx.Provider value={setTitle}>{children}</TitleCtx.Provider></main>
 
       {(fanOpen || fanMounted) && <div className={`${styles.fanBack} ${fanOpen ? "" : styles.closing}`} onClick={() => setFanOpen(false)} aria-hidden="true" />}
       {(fanOpen || fanMounted) && (
@@ -184,7 +195,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
       {(fanOpen || fanMounted) && menu.length <= 6 && (
         <div className={`${styles.fan} ${fanOpen ? "" : styles.closing}`} role="menu" aria-label="เมนูทั้งหมด">
           {menu.map((n, i) => (
-            <Link key={n.href} href={n.href} onClick={() => setFanOpen(false)} role="menuitem" className={`${styles.fanItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
+            <Link key={n.href} href={n.href} onClick={() => { setFanOpen(false); setNextPath(n.href); }} role="menuitem" className={`${styles.fanItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
               style={{ "--x": fan[i].x, "--y": fan[i].y, "--i": i } as React.CSSProperties}>
               <span className={styles.fanCircle}><Icon name={n.icon} size={22} /></span>
               <span className={styles.fanLbl}>{n.label}</span>
@@ -200,7 +211,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
                 <div className={styles.sheetTitle}>{title as string}</div>
                 <div className={styles.sheetGrid}>
                   {(list as NavItem[]).map((n, i) => (
-                    <Link key={n.href} href={n.href} onClick={() => setFanOpen(false)} role="menuitem" className={`${styles.fanItem} ${styles.sheetItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
+                    <Link key={n.href} href={n.href} onClick={() => { setFanOpen(false); setNextPath(n.href); }} role="menuitem" className={`${styles.fanItem} ${styles.sheetItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
                       style={{ "--i": i } as React.CSSProperties}>
                       <span className={styles.fanCircle}><Icon name={n.icon} size={22} /></span>
                       <span className={styles.fanLbl}>{n.label}</span>
@@ -212,7 +223,7 @@ export function Shell({ session, nav, title, children }: { session: StaffSession
           ))}
         </div>
       )}
-      <MobileDock slots={dockSlots} active={dockActive} menuKey={MENU_KEY} open={fanOpen} onMenu={() => setFanOpen((v) => !v)} onNavigate={() => setFanOpen(false)} />
+      <MobileDock slots={dockSlots} active={dockActive} menuKey={MENU_KEY} open={fanOpen} onMenu={() => setFanOpen((v) => !v)} onNavigate={(href) => { setFanOpen(false); setNextPath(href); }} />
     </div>
   );
 }

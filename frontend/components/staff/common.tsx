@@ -4,7 +4,7 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { api, errMsg, fmt, StaffSession } from "@/lib/api";
 import { MOCK } from "@/lib/mock";
 import { useApi, useStaffGuard } from "@/lib/hooks";
-import { Shell, STAFF_NAV } from "@/components/Shell";
+import { usePageTitle } from "@/components/Shell";
 import type { HolderItem, Meeting } from "@/lib/types";
 import styles from "./staff.module.css";
 
@@ -18,9 +18,10 @@ export interface Ctx {
   toast: (msg: string, err?: boolean) => void;
 }
 
-/** Guard + Shell + meeting-closed banner + toast host for every staff page. */
+/** Guard + page title + meeting-closed banner + toast host for every staff page. */
 export function StaffPage({ title, sub, children }: { title: string; sub?: string; children: (c: Ctx) => ReactNode }) {
   const session = useStaffGuard();
+  usePageTitle(title);
   const { data: meeting } = useApi<Meeting>(session ? "/api/meeting" : null);
   const [t, setT] = useState<{ msg: string; err: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,7 +34,7 @@ export function StaffPage({ title, sub, children }: { title: string; sub?: strin
   const closed = !!meeting?.closed_at;
   const canWrite = session.role !== "viewer" && !closed;
   return (
-    <Shell session={session} nav={STAFF_NAV} title={title}>
+    <>
       <div className={styles.stack}>
         <div className={styles.pageHead}>
           <div><h1>{title}</h1>{sub && <p>{sub}</p>}</div>
@@ -43,7 +44,7 @@ export function StaffPage({ title, sub, children }: { title: string; sub?: strin
         {children({ session, canWrite, closed, toast })}
       </div>
       {t && <div className={`${styles.toast} ${t.err ? styles.toastErr : ""}`} role="status">{t.msg}</div>}
-    </Shell>
+    </>
   );
 }
 
