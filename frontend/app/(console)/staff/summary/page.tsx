@@ -19,6 +19,8 @@ const RESULT: Record<TermResult["result"], { label: ReactNode; cls: string }> = 
   pending: { label: "รอเปิดโหวต", cls: "" },
   info: { label: "เพื่อทราบ", cls: styles.tBlue },
 };
+// The pass/fail verdict is decided on the combined (Onsite + Online) result, so the Onsite-only view shows just the agenda state.
+const statusOf = (t: TermResult, both: boolean) => (!both && (t.result === "pass" || t.result === "fail") ? { label: "ปิดโหวตแล้ว", cls: "" } : RESULT[t.result]);
 const KEYS: { k: keyof Tally; label: string; cls: string; bar: string }[] = [
   { k: "agree", label: "เห็นด้วย", cls: styles.tcGreen, bar: "#22c55e" },
   { k: "disagree", label: "ไม่เห็นด้วย", cls: styles.tcRed, bar: "#ef4444" },
@@ -31,7 +33,7 @@ const sum = (t: Tally) => t.agree + t.disagree + t.abstain + t.spoiled;
 function SummaryView() {
   const { data, loading, error } = useApi<Summary>("/api/summary", "staff", 10000);
   const desktop = useIsDesktop();
-  const [both, setBoth] = useState(false);
+  const [both, setBoth] = useState(true); // the official result is the combined one; Onsite-only is a secondary view for checking ballots
   if (loading) return <p className={styles.empty}>กำลังโหลด...</p>;
   if (error && !data) return <p className={styles.errText}>{error}</p>;
   if (!data) return null;
@@ -45,7 +47,7 @@ function SummaryView() {
       {KEYS.map((k) => <span key={k.k} style={{ width: `${sum(t) ? (t[k.k] / sum(t)) * 100 : 0}%`, background: k.bar }} />)}
     </div>
   );
-  const sub = (t: TermResult) => (!both || t.vote_type === "info" ? null : `Onsite ${fmt(sum(t.onsite))} · Online ${fmt(sum(t.online))} · รวม ${fmt(sum(t.total))}`);
+  const sub = (t: TermResult) => (t.vote_type === "info" || t.status === "pending" ? null : `Onsite ${fmt(sum(t.onsite))} · Online ${fmt(sum(t.online))} · รวม ${fmt(sum(t.total))}`);
 
   return (
     <>
@@ -74,9 +76,9 @@ function SummaryView() {
       </div>
 
       <div className={styles.seg} role="tablist" style={{ maxWidth: 420 }}>
-        {[false, true].map((b) => (
+        {[true, false].map((b) => (
           <button key={String(b)} role="tab" aria-selected={both === b} className={`${styles.segBtn} ${both === b ? styles.segOn : ""}`} onClick={() => setBoth(b)}>
-            {b ? "Onsite + Online" : "Onsite เท่านั้น"}
+            {b ? "รวมทุกช่องทาง" : "เฉพาะ Onsite"}
           </button>
         ))}
       </div>
@@ -87,7 +89,7 @@ function SummaryView() {
         <div className={styles.tableCard}>
           <div className={styles.tableHead} style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
             <b style={{ fontSize: 15 }}>ผลการลงคะแนนแต่ละวาระ</b>
-            <span className={styles.muted}>{both ? "แสดงผลผู้ถือหุ้น Onsite + Online" : "แสดงผลเฉพาะผู้ถือหุ้น Onsite"} · ร้อยละภายในกลุ่มที่เลือก · ผู้ที่ไม่ลงคะแนนนับเป็นเห็นด้วย</span>
+            <span className={styles.muted}>{both ? "แสดงผลผู้ถือหุ้น Onsite + Online" : "แสดงผลเฉพาะผู้ถือหุ้น Onsite (ผ่าน/ไม่ผ่านตัดสินจากยอดรวม ดูที่แท็บ รวมทุกช่องทาง)"} · ร้อยละภายในกลุ่มที่เลือก · ผู้ที่ไม่ลงคะแนนนับเป็นเห็นด้วย</span>
           </div>
           <div className={styles.tableScroll}>
             <table className={styles.tbl}>
@@ -95,7 +97,7 @@ function SummaryView() {
               <tbody>
                 {terms.map((t) => {
                   const info = t.vote_type === "info";
-                  const r = RESULT[t.result];
+                  const r = statusOf(t, both);
                   const rowT = both ? t.total : t.onsite;
                   return (
                     <tr key={t.term_id}>
@@ -122,7 +124,7 @@ function SummaryView() {
           <div style={{ fontWeight: 600, fontSize: 14 }}>ผลการลงคะแนนรายวาระ ({both ? "Onsite + Online" : "Onsite"})</div>
           {terms.map((t) => {
             const info = t.vote_type === "info";
-            const r = RESULT[t.result];
+            const r = statusOf(t, both);
             const rowT = both ? t.total : t.onsite;
             return (
               <div key={t.term_id} className={styles.tCard}>
