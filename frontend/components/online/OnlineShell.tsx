@@ -1,9 +1,11 @@
 "use client";
 import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Icon } from "@/components/brand/Icon";
 import { LogoMark } from "@/components/brand/Logo";
 import { AuthSplit } from "@/components/brand/AuthSplit";
-import { HolderDesktopShell } from "./HolderDesktopShell";
+import { HolderDesktopShell, NAV } from "./HolderDesktopShell";
 import { useIsDesktop } from "@/lib/media";
 import { fmt } from "@/lib/api";
 import { Me, MeCtx, ME_REFRESH, useHolderApi, useMe } from "./hooks";
@@ -50,6 +52,7 @@ function MeLoader({ pollMs, children }: { pollMs: number; children: ReactNode })
 
 function Frame({ title, step, back, children, right, subtitle, width = "col", footer, onLogout, auth, split, bare }: ShellProps) {
   const router = useRouter();
+  const path = usePathname();
   const desktop = useIsDesktop();
   const me = useMe()?.data ?? null;
   const meetingName = me?.meeting.detail || "ประชุมสามัญผู้ถือหุ้น";
@@ -102,6 +105,15 @@ function Frame({ title, step, back, children, right, subtitle, width = "col", fo
             {step ? <span className={s.pill}>ขั้นที่ {step}/4</span> : null}
             {right}
           </div>
+          {auth && (
+            <nav className={s.mnav} aria-label="เมนูผู้ถือหุ้น">
+              {NAV.map((n) => (
+                <Link key={n.href} href={n.href} className={path.startsWith(n.href) ? s.mnavOn : ""}>
+                  <Icon name={n.icon} size={16} /><span>{n.label}</span>
+                </Link>
+              ))}
+            </nav>
+          )}
           {step ? <div className={s.progress} aria-hidden="true"><div style={{ width: `${step * 25}%` }} /></div> : null}
         </header>
       )}

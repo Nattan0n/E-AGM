@@ -9,7 +9,7 @@ import { useSidebarCollapsed } from "@/lib/sidebar";
 import type { Me } from "./hooks";
 import styles from "@/components/Shell.module.css";
 
-const NAV: { href: string; label: string; icon: IconName }[] = [
+export const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/online/waiting", label: "ห้องประชุม", icon: "dashboard" },
   { href: "/online/vote", label: "ลงคะแนน", icon: "vote" },
   { href: "/online/results", label: "ผลมติ", icon: "chart" },

@@ -14,6 +14,10 @@
 .apptitle { flex: 1; min-width: 0; }
 .apptitle h1 { font-size: 17px; font-weight: 700; line-height: 1.25; }
 .apptitle span { display: block; font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mnav { display: flex; max-width: 560px; margin: 0 auto; padding: 0 8px 8px; gap: 4px; }
+.mnav a { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; height: 36px; border-radius: 10px; color: rgba(255,255,255,.85); font-size: 12.5px; font-weight: 500; white-space: nowrap; text-decoration: none; }
+.mnav a span { overflow: hidden; text-overflow: ellipsis; }
+.mnav a.mnavOn { background: rgba(255,255,255,.22); color: #fff; font-weight: 700; }
 .pill { font-size: 12px; background: rgba(255,255,255,.2); padding: 4px 12px; border-radius: 20px; white-space: nowrap; font-weight: 500; }
 .topbtn { border: none; background: rgba(255,255,255,.18); color: #fff; border-radius: 20px; padding: 0 14px; height: 36px; font-size: 12px; white-space: nowrap; }
 .progress { height: 4px; background: rgba(255,255,255,.25); }
