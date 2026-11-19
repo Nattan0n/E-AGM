@@ -29,7 +29,6 @@ const kb = (n: number) => (n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : `
 export default function RequestUser() {
   const [stage, setStage] = useState<Stage>({ k: "id" });
   const [idCard, setIdCard] = useState("");
-  const [acc, setAcc] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -49,7 +48,7 @@ export default function RequestUser() {
     if (idCard.replace(/\D/g, "").length < 6) { setError("กรุณากรอกเลขประจำตัวประชาชน / Passport ให้ถูกต้อง"); return; }
     setBusy(true);
     try {
-      const r = await api<StartResp>("/api/online/user-request", { method: "POST", body: { id_card: idCard.trim(), account_id: acc.trim().toUpperCase() }, session: null });
+      const r = await api<StartResp>("/api/online/user-request", { method: "POST", body: { id_card: idCard.trim() }, session: null });
       if (r.result === "sent") setStage({ k: "sent", channels: r.channels, dev: r.dev_user });
       else setStage({ k: "form", kind: r.result, ticket: r.ticket });
       setBusy(false);
@@ -126,14 +125,7 @@ export default function RequestUser() {
               <input id="idc" className={a.input} value={idCard} onChange={(e) => setIdCard(e.target.value)} placeholder="13 หลัก (ไม่ต้องใส่ขีด)" inputMode="numeric" maxLength={20} autoComplete="off" autoFocus />
             </div>
           </div>
-          <div className={a.field}>
-            <label className={a.label} htmlFor="acc">เลขทะเบียนผู้ถือหุ้น <span className={a.opt}>(ถ้าทราบ)</span></label>
-            <div className={a.wrap}><Icon name="register" size={18} />
-              <input id="acc" className={a.input} value={acc} onChange={(e) => setAcc(e.target.value)} placeholder="เช่น TRU-000001" maxLength={25} autoCapitalize="characters" autoComplete="off" />
-            </div>
-            <span className={a.hint}>ถ้ามีหลายบัญชี ระบุเพื่อขอเฉพาะบัญชีนั้น</span>
-          </div>
-          <div className={a.note}><Icon name="mail" size={17} /><span>หากทะเบียนมีอีเมลหรือเบอร์มือถือของท่านอยู่แล้ว ระบบจะส่ง User ไปที่ช่องทางนั้นทันที</span></div>
+          <div className={a.note}><Icon name="mail" size={17} /><span>หากทะเบียนมีอีเมลหรือเบอร์มือถือของท่านอยู่แล้ว ระบบจะส่ง User ไปที่ช่องทางนั้นทันที (ถ้ามีหลายบัญชี จะส่งให้ครบทุกบัญชี)</span></div>
           {err}
           <button type="submit" className={a.cta} disabled={busy}>{busy ? "กำลังตรวจสอบ..." : "ตรวจสอบและขอ User →"}</button>
         </form>
