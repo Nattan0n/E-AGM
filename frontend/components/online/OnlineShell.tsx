@@ -45,6 +45,9 @@ function MeLoader({ pollMs, children }: { pollMs: number; children: ReactNode })
   useEffect(() => { if (r.data) meCache = r.data; }, [r.data]);
   const { reload } = r;
   useEffect(() => { window.addEventListener(ME_REFRESH, reload); return () => window.removeEventListener(ME_REFRESH, reload); }, [reload]);
+  // first visit of the year (PDPA not accepted yet): the meeting pages are not available until it is done
+  const router = useRouter();
+  useEffect(() => { if (r.data?.registered === false) router.replace("/online/welcome"); }, [r.data, router]);
   const data = r.data ?? meCache;
   return <MeCtx.Provider value={{ data, error: r.error, loading: r.loading && !data }}>{children}</MeCtx.Provider>;
 }

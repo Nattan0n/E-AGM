@@ -5,8 +5,26 @@ import { useRouter } from "next/navigation";
 import { CHOICE_LABEL, fmt } from "@/lib/api";
 import { Receipt } from "@/lib/types";
 import { OnlineShell } from "@/components/online/OnlineShell";
-import { useHolderApi, holderLogout } from "@/components/online/hooks";
+import { useHolderApi, holderLogout, useMe } from "@/components/online/hooks";
 import s from "@/components/online/online.module.css";
+
+/** Flow page 5: after the receipt - results page once the admin has published them, otherwise "waiting". */
+function ResultsState() {
+  const me = useMe()?.data;
+  if (!me) return null;
+  return me.meeting.results_published ? (
+    <section className={`${s.cardc} ${s.noprint}`} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <Icon name="chart" size={22} />
+      <span style={{ flex: "1 1 200px", fontSize: 14 }}><b>ผู้ดูแลระบบเผยแพร่ผลมติแล้ว</b><br /><span className="muted" style={{ fontSize: 13 }}>ดูยอดรวมรายวาระได้ที่หน้าผลมติ</span></span>
+      <Link href="/online/results" className="btn btn-primary">ดูผลมติ →</Link>
+    </section>
+  ) : (
+    <section className={`${s.alertWait} ${s.noprint}`}>
+      <Icon name="clock" size={20} />
+      <span><b>ยังไม่เผยแพร่ผลมติ</b> — ผลรายวาระจะดูได้ที่เมนู “ผลมติ” เมื่อผู้ดูแลระบบเผยแพร่หลังประธานประกาศผล</span>
+    </section>
+  );
+}
 
 const dt = (v: string) => {
   const d = new Date(v);
@@ -28,7 +46,7 @@ export default function OnlineConfirm() {
   );
 
   return (
-    <OnlineShell title="ผลการลงคะแนนเสียง" step={4} width="col" auth onLogout={logout} footer={footer}>
+    <OnlineShell title="ผลการลงคะแนนเสียง" width="col" auth onLogout={logout} footer={footer}>
       {loading && !data && <div className="muted">กำลังโหลด...</div>}
       {error && !data && <div className="error-text" role="alert">{error}</div>}
       {data && (
@@ -68,6 +86,7 @@ export default function OnlineConfirm() {
               {data.votes.length === 0 && <div className="muted" style={{ padding: 16 }}>ไม่มีวาระที่ต้องลงคะแนน</div>}
             </div>
           </section>
+          <ResultsState />
           <button type="button" className={`btn btn-block ${s.noprint}`} onClick={logout}>ออกจากระบบ</button>
         </>
       )}

@@ -46,7 +46,10 @@ func (s *Server) Routes(e *echo.Echo) {
 		e.IPExtractor = echo.ExtractIPDirect()
 	}
 	e.Use(middleware.Secure())
-	e.Use(middleware.BodyLimit("1M"))
+	// 1 MB for JSON; the User-request upload (documents) has its own larger limit on the route
+	e.Use(middleware.BodyLimitWithConfig(middleware.BodyLimitConfig{Limit: "1M", Skipper: func(c echo.Context) bool {
+		return c.Request().URL.Path == "/api/online/user-request/contact"
+	}}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{s.Origin},
 		AllowHeaders: []string{"Authorization", "Content-Type"},
@@ -132,13 +135,20 @@ func (s *Server) Routes(e *echo.Echo) {
 
 	// ---- online shareholder ----
 	otpLimit := rateLimit(20, 10)
-	e.POST("/api/online/register", s.onlineRegister, otpLimit)
+	e.POST("/api/online/login", s.onlineLogin, otpLimit)
 	e.POST("/api/online/verify-otp", s.onlineVerify, otpLimit)
-	h := e.Group("/api/online", jwtMW, auth.RequireRole("holder"), s.holderSession)
-	h.GET("/me", s.onlineMe)
+	e.POST("/api/online/user-request", s.userRequestStart, otpLimit)
+	e.POST("/api/online/user-request/contact", s.userRequestContact, otpLimit, middleware.BodyLimit(UserRequestBodyLimit))
+	e.POST("/api/online/user-request/verify", s.userRequestVerify, otpLimit)
+	// logged in (OTP passed): profile, first-visit consent, logout
+	hs := e.Group("/api/online", jwtMW, auth.RequireRole("holder"), s.holderSession)
+	hs.GET("/me", s.onlineMe)
+	hs.POST("/consent", s.onlineConsent)
+	hs.POST("/logout", s.onlineLogout)
+	// registered for this meeting (PDPA accepted, vote method chosen)
+	h := e.Group("/api/online", jwtMW, auth.RequireRole("holder"), s.holderSession, holderRegistered)
 	h.GET("/agendas", s.onlineAgendas)
 	h.POST("/vote", s.onlineVote)
-	h.POST("/logout", s.onlineLogout)
 	h.PUT("/vote-mode", s.onlineSetMode)
 	h.GET("/receipt", s.onlineReceipt)
 	h.GET("/results", s.onlineResults)

@@ -107,7 +107,7 @@ export default function OnlineVote() {
   );
 
   return (
-    <OnlineShell title="ลงคะแนนเสียง" step={3} back="/online/waiting" width="wide" auth onLogout={logout} footer={footer}
+    <OnlineShell title="ลงคะแนนเสียง" back="/online/waiting" width="wide" auth onLogout={logout} footer={footer}
       right={<span className={s.live}><i />LIVE</span>}>
       <Gate>
       {loading && !data && <div className="muted">กำลังโหลด...</div>}

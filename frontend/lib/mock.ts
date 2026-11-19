@@ -198,7 +198,8 @@ export async function mockApi(path: string, method: string, body: Record<string,
       case "novote": return s.novote.filter((n) => !q.get("term_id") || n.term_id === q.get("term_id"));
       case "online": {
         const acc = HOLDER_TOKEN_ACC(), h = hold(acc) ?? HOLDERS[8];
-        if (seg[1] === "me") return { account_id: h.account_id, name: h.name, shares: h.shares, meeting: s.meeting, stats: stats(), vote_mode: s.regs[h.account_id]?.vote_mode ?? "self" };
+        if (seg[1] === "me") return { account_id: h.account_id, name: h.name, shares: h.shares, meeting: s.meeting, stats: stats(), vote_mode: s.regs[h.account_id]?.vote_mode ?? "self", registered: !!s.regs[h.account_id], contacts: [{ channel: "sms", masked: "XXXXXX1234" }] };
+        if (!s.regs[h.account_id]) err(403, "needs_consent"); // first visit: PDPA not accepted yet
         if (seg[1] === "agendas") return s.agendas.map((a): OnlineAgenda => ({ term_id: a.term_id, name: a.name, status: a.status, vote_type: a.vote_type, novote: s.novote.some((n) => n.term_id === a.term_id && n.account_id === h.account_id), choice: (s.votes[a.term_id]?.[h.account_id]?.choice as Choice) ?? "" }));
         if (seg[1] === "results") {
           const published = !!s.meeting.results_published;
@@ -251,11 +252,31 @@ export async function mockApi(path: string, method: string, body: Record<string,
     case "auth": return { token: "mock", role: String(b.username).toLowerCase().includes("admin") ? "admin" : "staff", name: "ผู้ใช้ตัวอย่าง", username: String(b.username || "demo") };
     case "online": {
       if (seg[1] === "logout") return out({});
-      if (seg[1] === "register") return { sent: true, channel: "sms", expires_in: 300, masked_to: "08X-XXX-1234", dev_otp: "123456" };
+      if (seg[1] === "login") {
+        if (!hold(String(b.account_id ?? "").trim().toUpperCase()) && !hold(String(b.account_id ?? "").trim())) err(401, "ไม่สามารถตรวจสอบ User นี้ได้ กรุณาตรวจสอบเลขทะเบียน หรือกด \"ขอ User\"");
+        if (s.regs[String(b.account_id).trim()]?.channel === "onsite") err(409, "ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว");
+        return { sent: true, channels: [{ channel: "sms", masked: "XXXXXX1234" }, { channel: "email", masked: "h*****@example.com" }], expires_in: 600, dev_otp: "123456" };
+      }
       if (seg[1] === "verify-otp") {
-        const acc = String(b.account_id || "1009");
-        if (!s.regs[acc]) { const h = hold(acc) ?? HOLDERS[8]; s.regs[h.account_id] = { type: "person", channel: "online", vote_mode: "self", shares: h.shares, at: new Date().toISOString() }; }
-        return out({ token: "mock" });
+        if (String(b.otp) !== "123456") err(401, "OTP ไม่ถูกต้องหรือหมดอายุ");
+        const h = hold(String(b.account_id).trim().toUpperCase()) ?? hold(String(b.account_id).trim()) ?? HOLDERS[8];
+        return out({ token: "mock", needs_consent: !s.regs[h.account_id] });
+      }
+      if (seg[1] === "consent") {
+        const acc = HOLDER_TOKEN_ACC(), h = hold(acc) ?? HOLDERS[8];
+        s.regs[h.account_id] ??= { type: "person", channel: "online", vote_mode: (b.vote_mode as "self" | "staff") ?? "self", shares: h.shares, at: new Date().toISOString() };
+        return out({ registered: true, vote_mode: s.regs[h.account_id].vote_mode });
+      }
+      if (seg[1] === "user-request") {
+        // demo: an ID card of a holder in the sample data -> User sent; ending in 0 -> found without contact; otherwise not found
+        if (!seg[2]) {
+          const idc = String(b.id_card ?? "").replace(/\D/g, "");
+          const h = HOLDERS.find((x) => x.id_card === idc);
+          if (h) return { result: "sent", channels: [{ channel: "sms", masked: "XXXXXX" + h.phone.slice(-4) }], dev_user: h.account_id };
+          return { result: idc.endsWith("0") ? "contact" : "not_found", ticket: "m".repeat(48) };
+        }
+        if (seg[2] === "contact") { const ch = b.channel === "email" ? "email" : "sms"; return { sent: true, channel: ch, masked_to: ch === "email" ? "e****@example.com" : "XXXXXX5678", expires_in: 600, dev_otp: "123456" }; }
+        if (seg[2] === "verify") { if (String(b.otp) !== "123456") err(401, "OTP ไม่ถูกต้องหรือหมดอายุ"); return { status: "pending", reference: "REQ-000123" }; }
       }
       if (seg[1] === "vote-mode") { const acc = HOLDER_TOKEN_ACC(); if (s.regs[acc]) s.regs[acc].vote_mode = (b.mode as "self" | "staff") ?? "self"; return out({}); }
       if (seg[1] === "vote") {

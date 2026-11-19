@@ -216,7 +216,7 @@ export default function OnlineWaiting() {
   const logout = () => { void holderLogout((p) => router.replace(p)); };
   const footer = desktop ? undefined : <MobileFooter ag={ag} />;
   return (
-    <OnlineShell title="ห้องประชุมออนไลน์" step={3} auth pollMs={5000} width="full" onLogout={logout} footer={footer}
+    <OnlineShell title="ห้องประชุมออนไลน์" auth pollMs={5000} width="full" onLogout={logout} footer={footer}
       right={<button type="button" className={s.topbtn} onClick={logout}>ออกจากระบบ</button>}>
       <Body ag={ag} desktop={desktop} />
     </OnlineShell>

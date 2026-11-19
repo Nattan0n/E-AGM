@@ -1,10 +1,10 @@
 package api
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -48,150 +48,139 @@ func newOTP() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-// holderSession validates that the holder token still maps to a live online registration.
+// holderSession validates that the holder token still maps to a live online registration. A holder who has passed
+// the OTP but not yet accepted PDPA (status pending) may only reach the endpoints outside the registered group.
 func (s *Server) holderSession(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cl := auth.FromContext(c)
 		var status string
+		var otpOK bool
 		var exp sql.NullTime
 		err := s.DB.QueryRowContext(c.Request().Context(),
-			`SELECT status, token_expires_at FROM online_registration WHERE id=? AND acc_id=?`, cl.RegID, cl.AccID).Scan(&status, &exp)
-		if err != nil || (status != "verified" && status != "voted") || (exp.Valid && exp.Time.Before(time.Now())) {
+			`SELECT status, otp_verified, token_expires_at FROM online_registration WHERE id=? AND acc_id=?`, cl.RegID, cl.AccID).Scan(&status, &otpOK, &exp)
+		live := status == "verified" || status == "voted" || (status == "pending" && otpOK)
+		if err != nil || !live || !exp.Valid || exp.Time.Before(time.Now()) {
 			return echo.NewHTTPError(http.StatusUnauthorized, "session no longer valid")
+		}
+		c.Set("holder_registered", status != "pending")
+		return next(c)
+	}
+}
+
+// holderRegistered guards the meeting endpoints: the holder must have accepted PDPA and chosen a vote method.
+func holderRegistered(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if ok, _ := c.Get("holder_registered").(bool); !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "needs_consent")
 		}
 		return next(c)
 	}
 }
 
-type onlineRegReq struct {
-	AccountID string `json:"account_id"`
-	IDCard    string `json:"id_card"`
-	Phone     string `json:"phone"`
-	Email     string `json:"email"`
-	Channel   string `json:"channel"`   // sms | email
-	Consent   bool   `json:"consent"`   // PDPA
-	VoteMode  string `json:"vote_mode"` // self (default) | staff - who casts the votes on meeting day
+// holderContacts returns the e-mail / mobile on file for a holder (the only places a login OTP may go).
+func holderContacts(ctx context.Context, d *sql.DB, acc string) (phone, email string, err error) {
+	var p, m string
+	err = d.QueryRowContext(ctx, `SELECT COALESCE(M_phone,''),COALESCE(I_Email,'') FROM holder WHERE Account_id=?`, acc).Scan(&p, &m)
+	return nonDigit.ReplaceAllString(p, ""), strings.ToLower(strings.TrimSpace(m)), err
 }
 
-// onlineRegister verifies the holder's identity data and sends an OTP.
-// The same generic error is returned for every identity mismatch to avoid enumeration.
-func (s *Server) onlineRegister(c echo.Context) error {
+// onlineLogin (flow page 2): the holder types the User (= Account ID); the OTP goes to the e-mail and mobile on file.
+// Every reason a User cannot be used gives the same message, and wrong tries are counted (5 per 15 minutes).
+func (s *Server) onlineLogin(c echo.Context) error {
 	ctx := c.Request().Context()
-	var r onlineRegReq
-	if err := c.Bind(&r); err != nil || r.AccountID == "" || r.IDCard == "" {
-		return bad("กรุณากรอกข้อมูลให้ครบ")
+	var r struct {
+		AccountID string `json:"account_id"`
 	}
-	if !r.Consent {
-		return bad("กรุณายินยอมการเก็บข้อมูลส่วนบุคคล (PDPA)")
+	if err := c.Bind(&r); err != nil || strings.TrimSpace(r.AccountID) == "" {
+		return bad("กรุณากรอก User (เลขทะเบียนผู้ถือหุ้น)")
 	}
-	if r.Channel != "sms" && r.Channel != "email" {
-		return bad("เลือกช่องทางรับ OTP")
-	}
+	acc := strings.ToUpper(strings.TrimSpace(r.AccountID))
 	m, err := s.meeting(ctx)
 	if err != nil {
 		return err
 	}
 	if m.Locked() || !m.OnlineEnabled {
-		return echo.NewHTTPError(http.StatusForbidden, "ปิดรับลงทะเบียนออนไลน์แล้ว")
+		return echo.NewHTTPError(http.StatusForbidden, "ปิดรับการเข้าประชุมออนไลน์แล้ว")
 	}
-	ipKey := "ip|" + c.RealIP()
-	accKey := "acc|" + r.AccountID
+	ipKey, accKey := "ip|"+c.RealIP(), "acc|"+acc
 	if !identityGuard.Allowed(ipKey) || !identityGuard.Allowed(accKey) {
-		s.audit(c, r.AccountID, "register_locked", nil)
-		return echo.NewHTTPError(http.StatusTooManyRequests, "กรอกข้อมูลไม่ตรงหลายครั้ง กรุณารอสักครู่แล้วลองใหม่")
+		s.audit(c, acc, "login_locked", nil)
+		return echo.NewHTTPError(http.StatusTooManyRequests, "ตรวจสอบไม่สำเร็จเกิน 5 ครั้ง กรุณารอ 15 นาทีแล้วลองใหม่")
 	}
-	mismatch := &mismatchErr{guardKeys: []string{ipKey, accKey}, err: echo.NewHTTPError(http.StatusUnauthorized, "ข้อมูลไม่ตรงกับทะเบียนผู้ถือหุ้น")}
+	invalid := &mismatchErr{guardKeys: []string{ipKey, accKey}, err: echo.NewHTTPError(http.StatusUnauthorized, "ไม่สามารถตรวจสอบ User นี้ได้ กรุณาตรวจสอบเลขทะเบียน หรือกด \"ขอ User\"")}
 
-	var tax, mPhone, mail string
-	err = s.DB.QueryRowContext(ctx, `SELECT COALESCE(I_tax,''),COALESCE(M_phone,''),COALESCE(I_Email,'') FROM holder WHERE Account_id=?`, r.AccountID).
-		Scan(&tax, &mPhone, &mail)
+	phone, email, err := holderContacts(ctx, s.DB, acc)
 	if err == sql.ErrNoRows {
-		return s.failIdentity(c, r.AccountID, mismatch)
+		return s.failIdentity(c, acc, invalid)
 	} else if err != nil {
 		return err
 	}
-	// A register entry without an ID number (or an input without digits) can never be verified: refuse instead of
-	// letting "" == "" pass, otherwise anyone knowing the account id could register with their own phone / e-mail.
-	taxDigits, idDigits := nonDigit.ReplaceAllString(tax, ""), nonDigit.ReplaceAllString(r.IDCard, "")
-	if taxDigits == "" || idDigits == "" || subtle.ConstantTimeCompare([]byte(taxDigits), []byte(idDigits)) != 1 {
-		return s.failIdentity(c, r.AccountID, mismatch)
-	}
-	// Where the register already holds a contact, the OTP target must match it.
-	phone, email := nonDigit.ReplaceAllString(r.Phone, ""), strings.ToLower(strings.TrimSpace(r.Email))
-	if p := nonDigit.ReplaceAllString(mPhone, ""); p != "" && p != phone {
-		return s.failIdentity(c, r.AccountID, mismatch)
-	}
-	if mail != "" && strings.ToLower(mail) != email {
-		return s.failIdentity(c, r.AccountID, mismatch)
-	}
-	to := phone
-	if r.Channel == "email" {
-		to = email
-	}
-	if to == "" {
-		return bad("กรอกช่องทางที่ใช้รับ OTP")
+	if phone == "" && email == "" { // no channel on file: the User is not active yet (request it first)
+		return s.failIdentity(c, acc, invalid)
 	}
 
 	var novoteAll int
 	s.DB.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM novote WHERE meeting_year=? AND acc_novote=?) =
 		(SELECT COUNT(*) FROM termpartner WHERE meeting_year=?) AND EXISTS(SELECT 1 FROM termpartner WHERE meeting_year=?)`,
-		m.Year, r.AccountID, m.Year, m.Year).Scan(&novoteAll)
+		m.Year, acc, m.Year, m.Year).Scan(&novoteAll)
 	if novoteAll == 1 {
-		return echo.NewHTTPError(http.StatusForbidden, "ไม่มีสิทธิ์ออกเสียงลงคะแนน")
-	}
-	if r.VoteMode == "" {
-		r.VoteMode = "self"
-	}
-	if r.VoteMode != "self" && r.VoteMode != "staff" {
-		return bad("เลือกวิธีลงคะแนน")
+		return echo.NewHTTPError(http.StatusForbidden, "ไม่มีสิทธิ์ออกเสียงลงคะแนนในการประชุมนี้")
 	}
 	var onsite int
-	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM regismaim WHERE meeting_year=? AND id_acc=?`, m.Year, r.AccountID).Scan(&onsite)
+	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM regismaim WHERE meeting_year=? AND id_acc=?`, m.Year, acc).Scan(&onsite)
 	if onsite > 0 {
-		return conflict("ลงทะเบียนเข้าประชุม Onsite แล้ว")
+		return conflict("ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว")
 	}
 
 	// 3 OTP requests per hour per holder
 	var recent int
-	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log WHERE acc_id=? AND action='otp_request' AND created_at > NOW() - INTERVAL 1 HOUR`, r.AccountID).Scan(&recent)
+	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log WHERE acc_id=? AND action='otp_request' AND created_at > NOW() - INTERVAL 1 HOUR`, acc).Scan(&recent)
 	if recent >= 3 {
-		return echo.NewHTTPError(http.StatusTooManyRequests, "ขอ OTP เกินจำนวนที่กำหนด กรุณารอสักครู่")
+		return echo.NewHTTPError(http.StatusTooManyRequests, "ขอ OTP ครบ 3 ครั้งในชั่วโมงนี้แล้ว กรุณารอสักครู่")
 	}
 
 	code, err := newOTP()
 	if err != nil {
 		return err
 	}
-	otpHash := s.hashSecret(r.AccountID, code)
-	cardHash := s.hashSecret("idcard", r.AccountID, nonDigit.ReplaceAllString(r.IDCard, ""))
+	otpHash := s.hashSecret(acc, code)
 	exp := time.Now().Add(10 * time.Minute)
-
 	var existing int
 	var status string
 	err = s.DB.QueryRowContext(ctx, `SELECT id,status FROM online_registration WHERE meeting_year=? AND acc_id=? ORDER BY id DESC LIMIT 1`,
-		m.Year, r.AccountID).Scan(&existing, &status)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	if err == nil && status != "cancelled" {
-		// re-login: new OTP on the existing registration (keeps status verified/voted until re-verified)
-		_, err = s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_attempts=0,token_expires_at=NULL,otp_code=?,otp_expires_at=?,otp_verified=0,phone=?,email=?,ip_address=?,vote_mode=IF(status='voted',vote_mode,?) WHERE id=?`,
-			otpHash, exp, phone, email, c.RealIP(), r.VoteMode, existing)
-	} else if err == nil && status == "cancelled" {
+		m.Year, acc).Scan(&existing, &status)
+	switch {
+	case err == nil && status == "cancelled":
 		return conflict("การลงทะเบียนออนไลน์ถูกยกเลิก กรุณาติดต่อเจ้าหน้าที่")
-	} else {
-		_, err = s.DB.ExecContext(ctx, `INSERT INTO online_registration(acc_id,meeting_year,id_card_hash,phone,email,otp_code,otp_expires_at,ip_address,vote_mode)
-			VALUES(?,?,?,?,?,?,?,?,?)`, r.AccountID, m.Year, cardHash, phone, email, otpHash, exp, c.RealIP(), r.VoteMode)
+	case err == nil:
+		// a new code only; a session that is already open stays valid until this code is used
+		_, err = s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_attempts=0,otp_code=?,otp_expires_at=?,phone=?,email=?,ip_address=? WHERE id=?`,
+			otpHash, exp, phone, email, c.RealIP(), existing)
+	case err == sql.ErrNoRows:
+		_, err = s.DB.ExecContext(ctx, `INSERT INTO online_registration(acc_id,meeting_year,phone,email,otp_code,otp_expires_at,ip_address)
+			VALUES(?,?,?,?,?,?,?)`, acc, m.Year, phone, email, otpHash, exp, c.RealIP())
 	}
 	if err != nil {
 		return err
 	}
 	identityGuard.Reset(accKey)
-	if err := s.OTP.Send(r.Channel, to, code); err != nil {
-		return echo.NewHTTPError(http.StatusBadGateway, "ส่ง OTP ไม่สำเร็จ")
+
+	sent := []echo.Map{}
+	for _, ch := range []struct{ channel, to string }{{"sms", phone}, {"email", email}} {
+		if ch.to == "" {
+			continue
+		}
+		if err := s.OTP.Send(ch.channel, ch.to, code); err != nil {
+			log.Printf("OTP send %s for %s failed: %v", ch.channel, acc, err)
+			continue
+		}
+		sent = append(sent, echo.Map{"channel": ch.channel, "masked": maskTo(ch.channel, ch.to)})
 	}
-	s.audit(c, r.AccountID, "otp_request", echo.Map{"channel": r.Channel})
-	resp := echo.Map{"sent": true, "channel": r.Channel, "expires_in": 600, "masked_to": maskTo(r.Channel, to)}
+	if len(sent) == 0 {
+		return echo.NewHTTPError(http.StatusBadGateway, "ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่")
+	}
+	s.audit(c, acc, "otp_request", echo.Map{"channels": len(sent)})
+	resp := echo.Map{"sent": true, "channels": sent, "expires_in": 600}
 	if s.DevOTP {
 		resp["dev_otp"] = code
 	}
@@ -241,13 +230,13 @@ func (s *Server) onlineVerify(c echo.Context) error {
 	}
 	invalid := echo.NewHTTPError(http.StatusUnauthorized, "OTP ไม่ถูกต้องหรือหมดอายุ")
 
+	acc := strings.ToUpper(strings.TrimSpace(r.AccountID))
 	var id int
 	var hash, status string
 	var exp sql.NullTime
-	var verified bool
-	err = s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(otp_code,''),otp_expires_at,otp_verified,status FROM online_registration
-		WHERE meeting_year=? AND acc_id=? ORDER BY id DESC LIMIT 1`, m.Year, r.AccountID).Scan(&id, &hash, &exp, &verified, &status)
-	if err != nil || status == "cancelled" || verified || hash == "" || !exp.Valid || exp.Time.Before(time.Now()) {
+	err = s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(otp_code,''),otp_expires_at,status FROM online_registration
+		WHERE meeting_year=? AND acc_id=? ORDER BY id DESC LIMIT 1`, m.Year, acc).Scan(&id, &hash, &exp, &status)
+	if err != nil || status == "cancelled" || hash == "" || !exp.Valid || exp.Time.Before(time.Now()) {
 		return invalid
 	}
 	// max 5 attempts per issued OTP: the counter is bumped atomically BEFORE comparing, so parallel guesses cannot exceed it
@@ -260,28 +249,66 @@ func (s *Server) onlineVerify(c echo.Context) error {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return echo.NewHTTPError(http.StatusTooManyRequests, "ลองผิดเกินกำหนด กรุณาขอ OTP ใหม่")
+		return echo.NewHTTPError(http.StatusTooManyRequests, "กรอก OTP ผิดครบ 5 ครั้ง กรุณาขอ OTP ใหม่")
 	}
-	if !hmac.Equal([]byte(s.hashSecret(r.AccountID, r.OTP)), []byte(hash)) {
+	if !hmac.Equal([]byte(s.hashSecret(acc, r.OTP)), []byte(hash)) {
 		otpIPGuard.Fail(ipKey)
-		s.audit(c, r.AccountID, "otp_fail", nil)
+		s.audit(c, acc, "otp_fail", nil)
 		return invalid
 	}
 	otpIPGuard.Reset(ipKey)
-	newStatus := "verified"
-	if status == "voted" {
-		newStatus = "voted"
-	}
-	if _, err := s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_verified=1,otp_attempts=0,otp_code=NULL,status=?,token_expires_at=? WHERE id=?`,
-		newStatus, time.Now().Add(12*time.Hour), id); err != nil {
-		return err
-	}
-	tok, err := auth.Sign(s.Secret, &auth.Claims{Role: "holder", AccID: r.AccountID, RegID: id}, 12*time.Hour)
+	// the code is single use; the registration itself (status) only changes once PDPA is accepted
+	res, err = s.DB.ExecContext(ctx, `UPDATE online_registration SET otp_verified=1,otp_attempts=0,otp_code=NULL,token_expires_at=? WHERE id=? AND otp_code=?`,
+		time.Now().Add(12*time.Hour), id, hash)
 	if err != nil {
 		return err
 	}
-	s.audit(c, r.AccountID, "login", echo.Map{"mode": "online"})
-	return c.JSON(http.StatusOK, echo.Map{"token": tok})
+	if n, _ := res.RowsAffected(); n == 0 {
+		return invalid
+	}
+	tok, err := auth.Sign(s.Secret, &auth.Claims{Role: "holder", AccID: acc, RegID: id}, 12*time.Hour)
+	if err != nil {
+		return err
+	}
+	s.audit(c, acc, "login", echo.Map{"mode": "online"})
+	return c.JSON(http.StatusOK, echo.Map{"token": tok, "needs_consent": status == "pending"})
+}
+
+// onlineConsent (flow page 3): first visit of the year - PDPA accepted + vote method chosen = registered online.
+func (s *Server) onlineConsent(c echo.Context) error {
+	cl := auth.FromContext(c)
+	ctx := c.Request().Context()
+	var r struct {
+		Consent  bool   `json:"consent"`
+		VoteMode string `json:"vote_mode"`
+	}
+	if err := c.Bind(&r); err != nil {
+		return bad("ข้อมูลไม่ถูกต้อง")
+	}
+	if !r.Consent {
+		return bad("กรุณายอมรับนโยบายคุ้มครองข้อมูลส่วนบุคคล (PDPA)")
+	}
+	if r.VoteMode != "self" && r.VoteMode != "staff" {
+		return bad("กรุณาเลือกวิธีลงคะแนน")
+	}
+	m, err := s.writable(ctx)
+	if err != nil {
+		return err
+	}
+	var onsite int
+	s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM regismaim WHERE meeting_year=? AND id_acc=?`, m.Year, cl.AccID).Scan(&onsite)
+	if onsite > 0 {
+		return conflict("ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว")
+	}
+	res, err := s.DB.ExecContext(ctx, `UPDATE online_registration SET status='verified',consent_at=NOW(),vote_mode=? WHERE id=? AND status='pending'`,
+		r.VoteMode, cl.RegID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		s.audit(c, cl.AccID, "online_register", echo.Map{"vote_mode": r.VoteMode, "pdpa": true})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"registered": true, "vote_mode": r.VoteMode})
 }
 
 // ---- authenticated holder endpoints ----
@@ -308,9 +335,18 @@ func (s *Server) onlineMe(c echo.Context) error {
 		return err
 	}
 	st, _ := s.statsOf(ctx, m)
-	var mode string
-	s.DB.QueryRowContext(ctx, `SELECT vote_mode FROM online_registration WHERE id=?`, cl.RegID).Scan(&mode)
-	return c.JSON(http.StatusOK, echo.Map{"account_id": cl.AccID, "name": name, "shares": shares, "meeting": m, "stats": st, "vote_mode": mode})
+	var mode, status string
+	var phone, email sql.NullString
+	s.DB.QueryRowContext(ctx, `SELECT vote_mode,status,phone,email FROM online_registration WHERE id=?`, cl.RegID).Scan(&mode, &status, &phone, &email)
+	contacts := []echo.Map{}
+	if phone.String != "" {
+		contacts = append(contacts, echo.Map{"channel": "sms", "masked": maskTo("sms", phone.String)})
+	}
+	if email.String != "" {
+		contacts = append(contacts, echo.Map{"channel": "email", "masked": maskTo("email", email.String)})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"account_id": cl.AccID, "name": name, "shares": shares, "meeting": m, "stats": st,
+		"vote_mode": mode, "registered": status == "verified" || status == "voted", "contacts": contacts})
 }
 
 type OnlineAgenda struct {

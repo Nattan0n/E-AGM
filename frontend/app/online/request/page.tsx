@@ -1,0 +1,278 @@
+"use client";
+import { ChangeEvent, FormEvent, useState } from "react";
+import Link from "next/link";
+import { api, errMsg } from "@/lib/api";
+import { Icon } from "@/components/brand/Icon";
+import { AuthFrame, REQUEST_STEPS } from "@/components/online/AuthFrame";
+import { Channel, SentTo, sentToText } from "@/components/online/hooks";
+import a from "@/components/online/auth.module.css";
+
+type StartResp = { result: "sent"; channels: SentTo[]; dev_user?: string } | { result: "contact" | "not_found"; ticket: string };
+interface ContactResp { sent: boolean; channel: Channel; masked_to: string; expires_in: number; dev_otp?: string }
+
+type Stage =
+  | { k: "id" }
+  | { k: "sent"; channels: SentTo[]; dev?: string }
+  | { k: "form"; kind: "contact" | "not_found"; ticket: string }
+  | { k: "otp"; kind: "contact" | "not_found"; ticket: string; masked: string; channel: Channel; expires: number; dev?: string }
+  | { k: "submitted"; kind: "contact" | "not_found"; reference: string };
+
+const MAX_FILES = 3;
+const MAX_SIZE = 3 << 20;
+const ACCEPT = ["application/pdf", "image/jpeg", "image/png"];
+const kb = (n: number) => (n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`);
+
+/**
+ * Flow page 1 - request a User (the User is the Account ID).
+ * ID card -> found with contact: User sent | found without contact: add contact + OTP -> OMD | not found: documents + OTP -> OMD.
+ */
+export default function RequestUser() {
+  const [stage, setStage] = useState<Stage>({ k: "id" });
+  const [idCard, setIdCard] = useState("");
+  const [acc, setAcc] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [channel, setChannel] = useState<Channel>("sms");
+  const [note, setNote] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [otp, setOtp] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+
+  const fail = (e: unknown) => { setError(errMsg(e)); setBusy(false); };
+
+  const start = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (idCard.replace(/\D/g, "").length < 6) { setError("กรุณากรอกเลขประจำตัวประชาชน / Passport ให้ถูกต้อง"); return; }
+    setBusy(true);
+    try {
+      const r = await api<StartResp>("/api/online/user-request", { method: "POST", body: { id_card: idCard.trim(), account_id: acc.trim().toUpperCase() }, session: null });
+      if (r.result === "sent") setStage({ k: "sent", channels: r.channels, dev: r.dev_user });
+      else setStage({ k: "form", kind: r.result, ticket: r.ticket });
+      setBusy(false);
+    } catch (err) { fail(err); }
+  };
+
+  const sendContact = async (ticket: string, kind: "contact" | "not_found", withFiles: boolean) => {
+    const fd = new FormData();
+    fd.set("ticket", ticket);
+    fd.set("phone", phone.trim());
+    fd.set("email", email.trim());
+    fd.set("channel", channel);
+    if (kind === "not_found") fd.set("full_name", name.trim());
+    if (note.trim()) fd.set("note", note.trim());
+    if (withFiles) files.forEach((f) => fd.append("files", f));
+    const r = await api<ContactResp>("/api/online/user-request/contact", { method: "POST", body: fd, session: null });
+    setStage({ k: "otp", kind, ticket, masked: r.masked_to, channel: r.channel, expires: Date.now() + r.expires_in * 1000, dev: r.dev_otp });
+  };
+
+  const submitForm = async (e: FormEvent) => {
+    e.preventDefault();
+    if (stage.k !== "form") return;
+    setError("");
+    if (!phone.trim() && !email.trim()) { setError("กรุณากรอกอีเมลหรือเบอร์มือถืออย่างน้อย 1 ช่องทาง"); return; }
+    if (channel === "sms" && !phone.trim()) { setError("เลือกรับ OTP ทาง SMS แต่ยังไม่ได้กรอกเบอร์มือถือ"); return; }
+    if (channel === "email" && !email.trim()) { setError("เลือกรับ OTP ทางอีเมล แต่ยังไม่ได้กรอกอีเมล"); return; }
+    if (stage.kind === "not_found") {
+      if (!name.trim()) { setError("กรุณากรอกชื่อ-นามสกุลตามเอกสาร"); return; }
+      if (files.length === 0) { setError("กรุณาแนบเอกสารประกอบอย่างน้อย 1 ไฟล์"); return; }
+    }
+    setBusy(true);
+    try { await sendContact(stage.ticket, stage.kind, true); setOtp(""); setBusy(false); } catch (err) { fail(err); }
+  };
+
+  const verify = async (e: FormEvent) => {
+    e.preventDefault();
+    if (stage.k !== "otp") return;
+    if (otp.length !== 6) { setError("กรุณากรอกรหัส OTP 6 หลัก"); return; }
+    setBusy(true); setError(""); setInfo("");
+    try {
+      const r = await api<{ reference: string }>("/api/online/user-request/verify", { method: "POST", body: { ticket: stage.ticket, otp }, session: null });
+      setStage({ k: "submitted", kind: stage.kind, reference: r.reference });
+      setBusy(false);
+    } catch (err) { setOtp(""); fail(err); }
+  };
+  const resend = async () => {
+    if (stage.k !== "otp") return;
+    setBusy(true); setError(""); setInfo("");
+    try { await sendContact(stage.ticket, stage.kind, false); setOtp(""); setInfo("ส่งรหัส OTP ใหม่แล้ว"); setBusy(false); } catch (err) { fail(err); }
+  };
+
+  const addFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    setError("");
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    const bad = picked.find((f) => !ACCEPT.includes(f.type) || f.size > MAX_SIZE);
+    if (bad) { setError(`ไฟล์ ${bad.name} ต้องเป็น PDF, JPG หรือ PNG และไม่เกิน 3 MB`); return; }
+    const next = [...files, ...picked].slice(0, MAX_FILES);
+    if (files.length + picked.length > MAX_FILES) setError(`แนบได้ไม่เกิน ${MAX_FILES} ไฟล์`);
+    setFiles(next);
+  };
+
+  const err = error && <div className={a.err} role="alert"><Icon name="warn" size={16} /><span>{error}</span></div>;
+  const backToId = () => { setStage({ k: "id" }); setError(""); setInfo(""); };
+
+  // ---------- 1. ID card ----------
+  if (stage.k === "id") {
+    return (
+      <AuthFrame title="ขอ User เข้าประชุม" subtitle="กรอกเลขบัตรเพื่อตรวจสอบกับทะเบียนผู้ถือหุ้น ณ วันปิดสมุดทะเบียน" steps={REQUEST_STEPS} step={1} back="/online" backLabel="กลับหน้าเข้าสู่ระบบ">
+        <form onSubmit={start} noValidate style={{ display: "contents" }}>
+          <div className={a.field}>
+            <label className={a.label} htmlFor="idc">เลขประจำตัวประชาชน / Passport / เลขนิติบุคคล <span className={a.req}>*</span></label>
+            <div className={a.wrap}><Icon name="user" size={18} />
+              <input id="idc" className={a.input} value={idCard} onChange={(e) => setIdCard(e.target.value)} placeholder="13 หลัก (ไม่ต้องใส่ขีด)" inputMode="numeric" maxLength={20} autoComplete="off" autoFocus />
+            </div>
+          </div>
+          <div className={a.field}>
+            <label className={a.label} htmlFor="acc">เลขทะเบียนผู้ถือหุ้น <span className={a.opt}>(ถ้าทราบ)</span></label>
+            <div className={a.wrap}><Icon name="register" size={18} />
+              <input id="acc" className={a.input} value={acc} onChange={(e) => setAcc(e.target.value)} placeholder="เช่น TRU-000001" maxLength={25} autoCapitalize="characters" autoComplete="off" />
+            </div>
+            <span className={a.hint}>ถ้ามีหลายบัญชี ระบุเพื่อขอเฉพาะบัญชีนั้น</span>
+          </div>
+          <div className={a.note}><Icon name="mail" size={17} /><span>หากทะเบียนมีอีเมลหรือเบอร์มือถือของท่านอยู่แล้ว ระบบจะส่ง User ไปที่ช่องทางนั้นทันที</span></div>
+          {err}
+          <button type="submit" className={a.cta} disabled={busy}>{busy ? "กำลังตรวจสอบ..." : "ตรวจสอบและขอ User →"}</button>
+        </form>
+        <div className={a.linkrow}>มี User แล้ว? <Link href="/online" className={a.link}>เข้าสู่ระบบ</Link></div>
+      </AuthFrame>
+    );
+  }
+
+  // ---------- found with a contact: User sent ----------
+  if (stage.k === "sent") {
+    return (
+      <AuthFrame title="ส่ง User ให้ท่านแล้ว" back={backToId}>
+        <div className={a.done}>
+          <span className={a.doneIcon} aria-hidden="true"><Icon name="mail" size={34} /></span>
+          <h3>ตรวจสอบข้อความของท่าน</h3>
+          <p>ระบบส่ง User (เลขทะเบียนผู้ถือหุ้น) ไปที่ <b>{sentToText(stage.channels)}</b> ตามที่ลงทะเบียนไว้กับบริษัท</p>
+        </div>
+        {stage.dev && <div className={a.dev}>DEV: User = {stage.dev}</div>}
+        <div className={a.note}><Icon name="warn" size={17} /><span>ถ้าช่องทางนี้ไม่ใช่ของท่านแล้ว หรือไม่ได้รับข้อความ กรุณาติดต่อเจ้าหน้าที่นักลงทุนสัมพันธ์ หรือลงทะเบียนที่หน้างานในวันประชุม</span></div>
+        <Link href="/online" className={a.cta}>ไปหน้าเข้าสู่ระบบ →</Link>
+      </AuthFrame>
+    );
+  }
+
+  // ---------- submitted: waiting for OMD ----------
+  if (stage.k === "submitted") {
+    return (
+      <AuthFrame title="ส่งคำขอเรียบร้อย" steps={REQUEST_STEPS} step={4}>
+        <div className={a.done}>
+          <span className={`${a.doneIcon} ${a.wait}`} aria-hidden="true"><Icon name="clock" size={34} /></span>
+          <h3>รอเจ้าหน้าที่ตรวจสอบ</h3>
+          <p>เจ้าหน้าที่ (OMD) จะตรวจสอบคำขอของท่าน และอาจโทรกลับไปยังเบอร์ที่ยืนยันไว้</p>
+          <span className={a.ref}>{stage.reference}</span>
+        </div>
+        <ol className={a.timeline}>
+          <li className={a.tOk}><i>✓</i><span>ยืนยันช่องทางติดต่อด้วย OTP แล้ว</span></li>
+          <li><i>2</i><span>OMD ตรวจสอบ{stage.kind === "not_found" ? "เอกสารกับนายทะเบียนหลักทรัพย์" : "ข้อมูลกับทะเบียนผู้ถือหุ้น"}</span></li>
+          <li><i>3</i><span>อนุมัติ: ได้รับ User ทางอีเมล / มือถือที่ยืนยันไว้ แล้วเข้าสู่ระบบได้ทันที</span></li>
+        </ol>
+        <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>หากไม่อนุมัติ ระบบจะแจ้งเหตุผลให้ทราบ และท่านยังลงทะเบียนที่หน้างานในวันประชุมได้</span></div>
+        <Link href="/online" className={a.ghost}>กลับหน้าเข้าสู่ระบบ</Link>
+      </AuthFrame>
+    );
+  }
+
+  // ---------- OTP for the contact ----------
+  if (stage.k === "otp") {
+    return (
+      <AuthFrame title="ยืนยันช่องทางติดต่อ" subtitle="กรอกรหัส OTP เพื่อยืนยันว่าช่องทางนี้เป็นของท่าน" steps={REQUEST_STEPS} step={3}
+        back={() => { setStage({ k: "form", kind: stage.kind, ticket: stage.ticket }); setError(""); setInfo(""); }} backLabel="แก้ไขข้อมูล">
+        <form onSubmit={verify} noValidate style={{ display: "contents" }}>
+          <div className={a.sentList}><div className={a.sentItem}><Icon name={stage.channel === "email" ? "mail" : "phone"} size={17} />ส่งรหัสไปที่<b>{stage.masked}</b></div></div>
+          {stage.dev && <div className={a.dev}>DEV: OTP = {stage.dev}</div>}
+          <div className={a.field}>
+            <label className={a.label} htmlFor="otp">รหัส OTP 6 หลัก</label>
+            <div className={a.wrap}><Icon name="lock" size={18} />
+              <input id="otp" className={`${a.input} ${a.big}`} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="••••••" autoFocus />
+            </div>
+            <span className={a.hint}>รหัสมีอายุ 10 นาที กรอกผิดได้ไม่เกิน 5 ครั้ง</span>
+          </div>
+          {err}
+          {info && <div className={a.ok} role="status">{info}</div>}
+          <button type="submit" className={a.cta} disabled={busy || otp.length !== 6}>{busy ? "กำลังตรวจสอบ..." : "ยืนยันและส่งคำขอ"}</button>
+        </form>
+        <div className={a.resend}>ไม่ได้รับรหัส? <button type="button" disabled={busy} onClick={() => void resend()}>ขอรหัสใหม่</button></div>
+      </AuthFrame>
+    );
+  }
+
+  // ---------- contact form (found without contact / not found) ----------
+  const notFound = stage.kind === "not_found";
+  return (
+    <AuthFrame title={notFound ? "ขอลงทะเบียนผู้ถือหุ้น" : "เพิ่มช่องทางรับ User"} steps={REQUEST_STEPS} step={2} back={backToId}
+      subtitle={notFound ? "ไม่พบเลขบัตรนี้ในทะเบียน ณ วันปิดสมุด กรุณาแนบเอกสารให้เจ้าหน้าที่ตรวจสอบ" : "พบชื่อของท่านในทะเบียน แต่ยังไม่มีอีเมล / เบอร์มือถือสำหรับส่ง User"}>
+      <form onSubmit={submitForm} noValidate style={{ display: "contents" }}>
+        {notFound && (
+          <>
+            <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>ปกติผู้ที่ไม่มีชื่อ ณ วันปิดสมุดทะเบียนจะไม่มีสิทธิ์เข้าประชุม เจ้าหน้าที่จะตรวจสอบกับนายทะเบียนก่อน หากเพิ่งรับโอนหุ้นหรือเปลี่ยนชื่อ กรุณาแนบหลักฐาน</span></div>
+            <div className={a.field}>
+              <label className={a.label} htmlFor="nm">ชื่อ-นามสกุล / ชื่อนิติบุคคล (ตามเอกสาร) <span className={a.req}>*</span></label>
+              <div className={a.wrap}><Icon name="user" size={18} /><input id="nm" className={a.input} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="name" /></div>
+            </div>
+          </>
+        )}
+        <div className={a.sec}>ช่องทางติดต่อ</div>
+        <div className={a.grid2}>
+          <div className={a.field}>
+            <label className={a.label} htmlFor="ph">เบอร์มือถือ</label>
+            <div className={a.wrap}><Icon name="phone" size={18} /><input id="ph" className={a.input} type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812345678" maxLength={15} autoComplete="tel" /></div>
+          </div>
+          <div className={a.field}>
+            <label className={a.label} htmlFor="em">อีเมล</label>
+            <div className={a.wrap}><Icon name="mail" size={18} /><input id="em" className={a.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" maxLength={100} autoComplete="email" /></div>
+          </div>
+        </div>
+        <div className={a.field}>
+          <span className={a.label}>รับรหัส OTP ทาง</span>
+          <div className={a.seg} role="radiogroup" aria-label="ช่องทางรับ OTP">
+            <button type="button" role="radio" aria-checked={channel === "sms"} className={channel === "sms" ? a.on : ""} onClick={() => setChannel("sms")}><Icon name="phone" size={17} />SMS</button>
+            <button type="button" role="radio" aria-checked={channel === "email"} className={channel === "email" ? a.on : ""} onClick={() => setChannel("email")}><Icon name="mail" size={17} />อีเมล</button>
+          </div>
+          <span className={a.hint}>เจ้าหน้าที่จะส่ง User ไปยังช่องทางที่ยืนยันแล้วเมื่ออนุมัติ</span>
+        </div>
+
+        {notFound && (
+          <>
+            <div className={a.sec}>เอกสารประกอบ</div>
+            <ul className={a.checklist}>
+              <li>บุคคลธรรมดา: สำเนาบัตรประชาชน (ไทย) หรือหนังสือเดินทาง (ต่างชาติ)</li>
+              <li>นิติบุคคล: หนังสือรับรองบริษัท + สำเนาบัตรผู้มีอำนาจลงนาม</li>
+              <li>หลักฐานการถือหุ้น เช่น ใบหุ้น หรือหนังสือยืนยันจากโบรกเกอร์ (ถ้ามี)</li>
+            </ul>
+            {files.length < MAX_FILES && (
+              <label className={a.upload}>
+                <Icon name="upload" size={24} />
+                <span><b>เลือกไฟล์</b> PDF, JPG, PNG · ไม่เกิน 3 MB · สูงสุด {MAX_FILES} ไฟล์</span>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple onChange={addFiles} />
+              </label>
+            )}
+            {files.length > 0 && (
+              <div className={a.files}>
+                {files.map((f, i) => (
+                  <div key={`${f.name}-${i}`} className={a.file}>
+                    <Icon name="file" size={17} /><span>{f.name}</span><small>{kb(f.size)}</small>
+                    <button type="button" aria-label={`ลบ ${f.name}`} onClick={() => setFiles(files.filter((_, k) => k !== i))}><Icon name="x" size={15} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        <div className={a.field}>
+          <label className={a.label} htmlFor="nt">หมายเหตุถึงเจ้าหน้าที่ <span className={a.opt}>(ถ้ามี)</span></label>
+          <textarea id="nt" className={a.area} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="เช่น เวลาที่สะดวกให้ติดต่อกลับ" />
+        </div>
+        <div className={a.note}><Icon name="lock" size={17} /><span>ข้อมูลและเอกสารใช้เพื่อยืนยันสิทธิ์เข้าประชุมเท่านั้น และได้รับการคุ้มครองตาม PDPA</span></div>
+        {err}
+        <button type="submit" className={a.cta} disabled={busy}>{busy ? "กำลังส่ง..." : "ส่งรหัส OTP เพื่อยืนยัน →"}</button>
+      </form>
+    </AuthFrame>
+  );
+}

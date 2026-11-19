@@ -53,19 +53,21 @@ export async function api<T = unknown>(
   opts: { method?: string; body?: unknown; session?: Session | null } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  const form = typeof FormData !== "undefined" && opts.body instanceof FormData;
+  if (opts.body !== undefined && !form) headers["Content-Type"] = "application/json";
   const kind = opts.session === undefined ? "staff" : opts.session;
   if (kind) {
     const s = getSession(kind);
     if (s?.token) headers.Authorization = `Bearer ${s.token}`;
   }
   if (MOCK) {
-    try { return (await mockApi(path, opts.method ?? "GET", opts.body as Record<string, unknown> | undefined)) as T; }
+    const mb = form ? Object.fromEntries((opts.body as FormData).entries()) : opts.body;
+    try { return (await mockApi(path, opts.method ?? "GET", mb as Record<string, unknown> | undefined)) as T; }
     catch (e) { throw new ApiError((e as { __mockStatus?: number }).__mockStatus ?? 400, errMsg(e)); }
   }
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, { method: opts.method ?? "GET", headers, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
+    res = await fetch(`${BASE}${path}`, { method: opts.method ?? "GET", headers, body: form ? (opts.body as FormData) : opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
   } catch {
     throw new ApiError(0, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
   }
