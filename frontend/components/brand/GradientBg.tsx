@@ -6,7 +6,8 @@ import styles from "./GradientBg.module.css";
 /** Pages that sit on the dark brand gradient (hero style). Everything else gets the light, quiet variant. */
 const HERO_ALWAYS = ["/"];
 /** Dark on desktop only; on phones the form sits on a plain light page so labels stay readable. */
-const HERO_DESKTOP = ["/staff/login", "/online", "/online/otp"];
+/** Keep in sync with the pages that render AuthSplit / AuthFrame (white brand text on the left needs the dark backdrop). */
+const HERO_DESKTOP = ["/staff/login", "/online", "/online/otp", "/online/request", "/online/welcome"];
 
 /**
  * Animated morphing-gradient backdrop (adapted from the gradients-bg project, recoloured to the
