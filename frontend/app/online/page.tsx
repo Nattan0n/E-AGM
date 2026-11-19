@@ -26,7 +26,13 @@ export default function OnlineLogin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  useEffect(() => { const n = takeNotice(); if (n) { const t = setTimeout(() => setNotice(n), 0); return () => clearTimeout(t); } }, []);
+  // Runs on mount and again when Next shows this kept-alive page after a redirect back here (logout, declined PDPA,
+  // expired session): clear the "busy" left from the earlier submit, and show the one-shot notice. The notice is taken
+  // inside the timer so a cancelled run (dev double effects) does not consume it without showing it.
+  useEffect(() => {
+    const t = setTimeout(() => { setBusy(false); setChoices(null); const n = takeNotice(); if (n) setNotice(n); }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const login = async (accountId = "") => {
     setError(""); setNotice("");

@@ -163,7 +163,14 @@ function audit(): AuditRow[] {
 
 const HOLDER_TOKEN_ACC = () => { try { return (JSON.parse(sessionStorage.getItem("eagm_holder") ?? "{}") as { account_id?: string }).account_id ?? "1009"; } catch { return "1009"; } };
 
+/** Like a real API, every response is a fresh copy: handing out the live state objects would let React see a changed
+ *  meeting as "the same object" and skip re-rendering (e.g. the closed-meeting banner after closing). */
 export async function mockApi(path: string, method: string, body: Record<string, unknown> | undefined): Promise<unknown> {
+  const r = await mockApiRaw(path, method, body);
+  return r === undefined ? r : JSON.parse(JSON.stringify(r));
+}
+
+async function mockApiRaw(path: string, method: string, body: Record<string, unknown> | undefined): Promise<unknown> {
   await new Promise((r) => setTimeout(r, 40));
   const s = S();
   const url = new URL(path, "http://x");
@@ -249,7 +256,11 @@ export async function mockApi(path: string, method: string, body: Record<string,
   // writes
   const b = body ?? {};
   switch (seg[0]) {
-    case "auth": return { token: "mock", role: String(b.username).toLowerCase().includes("admin") ? "admin" : "staff", name: "ผู้ใช้ตัวอย่าง", username: String(b.username || "demo") };
+    case "auth": {
+      // demo: any password; the role follows the username (admin / viewer / anything else = staff)
+      const u = String(b.username || "demo").toLowerCase();
+      return { token: "mock", role: u.includes("admin") ? "admin" : u.includes("viewer") ? "viewer" : "staff", name: "ผู้ใช้ตัวอย่าง", username: String(b.username || "demo") };
+    }
     case "online": {
       if (seg[1] === "logout") return out({});
       if (seg[1] === "login") {
