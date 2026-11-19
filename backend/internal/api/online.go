@@ -77,24 +77,52 @@ func holderRegistered(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// holderContacts returns the e-mail / mobile on file for a holder (the only places a login OTP may go).
-func holderContacts(ctx context.Context, d *sql.DB, acc string) (phone, email string, err error) {
-	var p, m string
-	err = d.QueryRowContext(ctx, `SELECT COALESCE(M_phone,''),COALESCE(I_Email,'') FROM holder WHERE Account_id=?`, acc).Scan(&p, &m)
-	return nonDigit.ReplaceAllString(p, ""), strings.ToLower(strings.TrimSpace(m)), err
+// holdersByIDCard lists the accounts registered under an ID card / passport / company number (digits only compared,
+// the register stores them in several formats). acc narrows it to one account.
+type idCardHit struct {
+	Acc    string
+	Shares int
+	Phone  string
+	Email  string
 }
 
-// onlineLogin (flow page 2): the holder types the User (= Account ID); the OTP goes to the e-mail and mobile on file.
-// Every reason a User cannot be used gives the same message, and wrong tries are counted (5 per 15 minutes).
+func holdersByIDCard(ctx context.Context, d *sql.DB, idc, acc string) ([]idCardHit, error) {
+	rows, err := d.QueryContext(ctx, `SELECT Account_id, COALESCE(Q_share,0), COALESCE(M_phone,''), COALESCE(I_Email,'') FROM holder
+		WHERE REGEXP_REPLACE(COALESCE(I_tax,''), '[^0-9]', '') = ? AND (?='' OR Account_id=?) ORDER BY Account_id LIMIT 20`, idc, acc, acc)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []idCardHit
+	for rows.Next() {
+		var h idCardHit
+		if err := rows.Scan(&h.Acc, &h.Shares, &h.Phone, &h.Email); err != nil {
+			return nil, err
+		}
+		h.Phone, h.Email = nonDigit.ReplaceAllString(h.Phone, ""), strings.ToLower(strings.TrimSpace(h.Email))
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+// onlineLogin (flow page 2): the holder types the ID card / passport number (the User); the OTP goes to the e-mail
+// and mobile on file of that account. When one ID card holds several accounts and none is chosen yet, the accounts
+// are listed so the holder can pick one. Every reason a User cannot be used gives the same message, and wrong tries
+// are counted (5 per 15 minutes).
 func (s *Server) onlineLogin(c echo.Context) error {
 	ctx := c.Request().Context()
 	var r struct {
+		IDCard    string `json:"id_card"`
 		AccountID string `json:"account_id"`
 	}
-	if err := c.Bind(&r); err != nil || strings.TrimSpace(r.AccountID) == "" {
-		return bad("กรุณากรอก User (เลขทะเบียนผู้ถือหุ้น)")
+	if err := c.Bind(&r); err != nil {
+		return bad("ข้อมูลไม่ถูกต้อง")
 	}
-	acc := strings.ToUpper(strings.TrimSpace(r.AccountID))
+	idc := nonDigit.ReplaceAllString(r.IDCard, "")
+	if len(idc) < 6 {
+		return bad("กรุณากรอกเลขประจำตัวประชาชน / Passport ให้ถูกต้อง")
+	}
+	pick := strings.ToUpper(strings.TrimSpace(r.AccountID))
 	m, err := s.meeting(ctx)
 	if err != nil {
 		return err
@@ -102,19 +130,28 @@ func (s *Server) onlineLogin(c echo.Context) error {
 	if m.Locked() || !m.OnlineEnabled {
 		return echo.NewHTTPError(http.StatusForbidden, "ปิดรับการเข้าประชุมออนไลน์แล้ว")
 	}
-	ipKey, accKey := "ip|"+c.RealIP(), "acc|"+acc
-	if !identityGuard.Allowed(ipKey) || !identityGuard.Allowed(accKey) {
-		s.audit(c, acc, "login_locked", nil)
+	ipKey, idKey := "ip|"+c.RealIP(), "idc|"+idc
+	if !identityGuard.Allowed(ipKey) || !identityGuard.Allowed(idKey) {
+		s.audit(c, pick, "login_locked", nil)
 		return echo.NewHTTPError(http.StatusTooManyRequests, "ตรวจสอบไม่สำเร็จเกิน 5 ครั้ง กรุณารอ 15 นาทีแล้วลองใหม่")
 	}
-	invalid := &mismatchErr{guardKeys: []string{ipKey, accKey}, err: echo.NewHTTPError(http.StatusUnauthorized, "ไม่สามารถตรวจสอบ User นี้ได้ กรุณาตรวจสอบเลขทะเบียน หรือกด \"ขอ User\"")}
+	invalid := &mismatchErr{guardKeys: []string{ipKey, idKey}, err: echo.NewHTTPError(http.StatusUnauthorized, "ไม่สามารถเข้าสู่ระบบด้วยเลขบัตรนี้ได้ กรุณาตรวจสอบเลขบัตร หรือกด \"ขอ User\"")}
 
-	phone, email, err := holderContacts(ctx, s.DB, acc)
-	if err == sql.ErrNoRows {
-		return s.failIdentity(c, acc, invalid)
-	} else if err != nil {
+	hits, err := holdersByIDCard(ctx, s.DB, idc, pick)
+	if err != nil {
 		return err
 	}
+	if len(hits) == 0 {
+		return s.failIdentity(c, pick, invalid)
+	}
+	if len(hits) > 1 { // several accounts under one ID card: let the holder choose (each one logs in on its own)
+		list := []echo.Map{}
+		for _, h := range hits {
+			list = append(list, echo.Map{"account_id": h.Acc, "shares": h.Shares, "active": h.Phone != "" || h.Email != ""})
+		}
+		return c.JSON(http.StatusOK, echo.Map{"choose": list})
+	}
+	acc, phone, email := hits[0].Acc, hits[0].Phone, hits[0].Email
 	if phone == "" && email == "" { // no channel on file: the User is not active yet (request it first)
 		return s.failIdentity(c, acc, invalid)
 	}
@@ -163,7 +200,7 @@ func (s *Server) onlineLogin(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	identityGuard.Reset(accKey)
+	identityGuard.Reset(idKey)
 
 	sent := []echo.Map{}
 	for _, ch := range []struct{ channel, to string }{{"sms", phone}, {"email", email}} {
@@ -180,7 +217,7 @@ func (s *Server) onlineLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadGateway, "ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่")
 	}
 	s.audit(c, acc, "otp_request", echo.Map{"channels": len(sent)})
-	resp := echo.Map{"sent": true, "channels": sent, "expires_in": 600}
+	resp := echo.Map{"sent": true, "channels": sent, "expires_in": 600, "account_id": acc}
 	if s.DevOTP {
 		resp["dev_otp"] = code
 	}

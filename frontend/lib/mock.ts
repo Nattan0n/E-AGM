@@ -253,9 +253,11 @@ export async function mockApi(path: string, method: string, body: Record<string,
     case "online": {
       if (seg[1] === "logout") return out({});
       if (seg[1] === "login") {
-        if (!hold(String(b.account_id ?? "").trim().toUpperCase()) && !hold(String(b.account_id ?? "").trim())) err(401, "ไม่สามารถตรวจสอบ User นี้ได้ กรุณาตรวจสอบเลขทะเบียน หรือกด \"ขอ User\"");
-        if (s.regs[String(b.account_id).trim()]?.channel === "onsite") err(409, "ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว");
-        return { sent: true, channels: [{ channel: "sms", masked: "XXXXXX1234" }, { channel: "email", masked: "h*****@example.com" }], expires_in: 600, dev_otp: "123456" };
+        const idc = String(b.id_card ?? "").replace(/\D/g, "");
+        const h = HOLDERS.find((x) => x.id_card === idc);
+        if (!h) err(401, "ไม่สามารถเข้าสู่ระบบด้วยเลขบัตรนี้ได้ กรุณาตรวจสอบเลขบัตร หรือกด \"ขอ User\"");
+        if (s.regs[h!.account_id]?.channel === "onsite") err(409, "ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว");
+        return { sent: true, account_id: h!.account_id, channels: [{ channel: "sms", masked: "XXXXXX" + h!.phone.slice(-4) }, { channel: "email", masked: "h*****@example.com" }], expires_in: 600, dev_otp: "123456" };
       }
       if (seg[1] === "verify-otp") {
         if (String(b.otp) !== "123456") err(401, "OTP ไม่ถูกต้องหรือหมดอายุ");
@@ -268,11 +270,11 @@ export async function mockApi(path: string, method: string, body: Record<string,
         return out({ registered: true, vote_mode: s.regs[h.account_id].vote_mode });
       }
       if (seg[1] === "user-request") {
-        // demo: an ID card of a holder in the sample data -> User sent; ending in 0 -> found without contact; otherwise not found
+        // demo: an ID card of a holder in the sample data -> can log in already; ending in 0 -> found without contact; otherwise not found
         if (!seg[2]) {
           const idc = String(b.id_card ?? "").replace(/\D/g, "");
           const h = HOLDERS.find((x) => x.id_card === idc);
-          if (h) return { result: "sent", channels: [{ channel: "sms", masked: "XXXXXX" + h.phone.slice(-4) }], dev_user: h.account_id };
+          if (h) return { result: "ready", channels: [{ channel: "sms", masked: "XXXXXX" + h.phone.slice(-4) }] };
           return { result: idc.endsWith("0") ? "contact" : "not_found", ticket: "m".repeat(48) };
         }
         if (seg[2] === "contact") { const ch = b.channel === "email" ? "email" : "sms"; return { sent: true, channel: ch, masked_to: ch === "email" ? "e****@example.com" : "XXXXXX5678", expires_in: 600, dev_otp: "123456" }; }

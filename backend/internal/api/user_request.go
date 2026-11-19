@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,10 +17,10 @@ import (
 	"github.com/thairung/e-agm/internal/auth"
 )
 
-// Requesting a User (flow page 1). The User is the Account ID; a holder who does not know it, or whose register entry
-// has no e-mail / mobile, starts here with the ID card number:
+// Requesting a User (flow page 1). The User is the ID card / passport number; a holder starts here when the login
+// does not accept it:
 //
-//	found + contact on file   -> the User is sent to that contact right away (nothing shown on screen)
+//	found + contact on file   -> nothing to do: log in with the ID card (the OTP goes to that contact)
 //	found + no contact        -> the holder enters an e-mail / mobile, confirms it by OTP -> OMD review
 //	not found in the register -> the holder fills in a request with documents, confirms the contact by OTP -> OMD review
 //
@@ -48,18 +47,16 @@ func newTicket() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// userRequestStart: POST {id_card, account_id?}
+// userRequestStart: POST {id_card}
 func (s *Server) userRequestStart(c echo.Context) error {
 	ctx := c.Request().Context()
 	var r struct {
-		IDCard    string `json:"id_card"`
-		AccountID string `json:"account_id"`
+		IDCard string `json:"id_card"`
 	}
 	if err := c.Bind(&r); err != nil {
 		return bad("ข้อมูลไม่ถูกต้อง")
 	}
 	idc := nonDigit.ReplaceAllString(r.IDCard, "")
-	acc := strings.ToUpper(strings.TrimSpace(r.AccountID))
 	if len(idc) < 6 {
 		return bad("กรุณากรอกเลขประจำตัวประชาชน / Passport ให้ถูกต้อง")
 	}
@@ -76,56 +73,28 @@ func (s *Server) userRequestStart(c echo.Context) error {
 	}
 	requestGuard.Fail(ipKey)
 
-	// ID numbers are compared on digits only (the register stores them in several formats)
-	rows, err := s.DB.QueryContext(ctx, `SELECT Account_id, COALESCE(M_phone,''), COALESCE(I_Email,'') FROM holder
-		WHERE REGEXP_REPLACE(COALESCE(I_tax,''), '[^0-9]', '') = ? AND (?='' OR Account_id=?) ORDER BY Account_id LIMIT 20`, idc, acc, acc)
+	hits, err := holdersByIDCard(ctx, s.DB, idc, "")
 	if err != nil {
 		return err
 	}
-	type hit struct{ acc, phone, email string }
-	var hits []hit
-	for rows.Next() {
-		var h hit
-		if err := rows.Scan(&h.acc, &h.phone, &h.email); err != nil {
-			rows.Close()
-			return err
-		}
-		h.phone, h.email = nonDigit.ReplaceAllString(h.phone, ""), strings.ToLower(strings.TrimSpace(h.email))
-		hits = append(hits, h)
-	}
-	rows.Close()
-
-	// found and at least one account has a contact: send each account's User to its own contacts
-	sent := []echo.Map{}
+	// found and the account(s) have a contact on file: the ID card already works as the User - nothing to send
+	ready := []echo.Map{}
 	var noContact []string
 	for _, h := range hits {
-		if h.phone == "" && h.email == "" {
-			noContact = append(noContact, h.acc)
+		if h.Phone == "" && h.Email == "" {
+			noContact = append(noContact, h.Acc)
 			continue
 		}
-		msg := "User สำหรับเข้าประชุม E-AGM: " + h.acc
-		for _, ch := range []struct{ channel, to string }{{"sms", h.phone}, {"email", h.email}} {
-			if ch.to == "" {
-				continue
-			}
-			if err := s.OTP.Send(ch.channel, ch.to, msg); err != nil {
-				log.Printf("send User %s via %s failed: %v", h.acc, ch.channel, err)
-				continue
-			}
-			sent = append(sent, echo.Map{"channel": ch.channel, "masked": maskTo(ch.channel, ch.to)})
+		if h.Phone != "" {
+			ready = append(ready, echo.Map{"channel": "sms", "masked": maskTo("sms", h.Phone)})
 		}
-		s.audit(c, h.acc, "user_sent", nil)
+		if h.Email != "" {
+			ready = append(ready, echo.Map{"channel": "email", "masked": maskTo("email", h.Email)})
+		}
 	}
-	if len(sent) > 0 {
-		resp := echo.Map{"result": "sent", "channels": sent}
-		if s.DevOTP {
-			accs := []string{}
-			for _, h := range hits {
-				accs = append(accs, h.acc)
-			}
-			resp["dev_user"] = strings.Join(accs, ", ")
-		}
-		return c.JSON(http.StatusOK, resp)
+	if len(noContact) == 0 && len(ready) > 0 {
+		s.audit(c, hits[0].Acc, "user_request_ready", nil)
+		return c.JSON(http.StatusOK, echo.Map{"result": "ready", "channels": ready})
 	}
 
 	kind := "not_found"

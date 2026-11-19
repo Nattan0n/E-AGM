@@ -80,6 +80,16 @@
 .or { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-muted); }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 
+/* ---------- account chooser (one ID card, several accounts) ---------- */
+.accounts { display: flex; flex-direction: column; gap: 10px; }
+.account { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 14px; border-radius: 14px; border: 1.5px solid var(--border); background: #fff; color: var(--ink); font-size: 18px; transition: border-color .15s, box-shadow .15s; }
+.account:hover:not(:disabled) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.12); color: var(--primary); }
+.account:disabled { opacity: .55; cursor: not-allowed; }
+.accIcon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: #eef2fb; color: var(--primary); flex-shrink: 0; }
+.accText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.accText b { font-size: 15px; color: var(--navy); }
+.accText small { font-size: 12px; color: var(--ink-muted); }
+
 /* ---------- OTP ---------- */
 .otpHead { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
 .shield { width: 64px; height: 64px; border-radius: 50%; background: #cffafe; display: grid; place-items: center; color: #0891b2; }

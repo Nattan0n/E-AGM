@@ -7,12 +7,12 @@ import { AuthFrame, REQUEST_STEPS } from "@/components/online/AuthFrame";
 import { Channel, SentTo, sentToText } from "@/components/online/hooks";
 import a from "@/components/online/auth.module.css";
 
-type StartResp = { result: "sent"; channels: SentTo[]; dev_user?: string } | { result: "contact" | "not_found"; ticket: string };
+type StartResp = { result: "ready"; channels: SentTo[] } | { result: "contact" | "not_found"; ticket: string };
 interface ContactResp { sent: boolean; channel: Channel; masked_to: string; expires_in: number; dev_otp?: string }
 
 type Stage =
   | { k: "id" }
-  | { k: "sent"; channels: SentTo[]; dev?: string }
+  | { k: "ready"; channels: SentTo[] }
   | { k: "form"; kind: "contact" | "not_found"; ticket: string }
   | { k: "otp"; kind: "contact" | "not_found"; ticket: string; masked: string; channel: Channel; expires: number; dev?: string }
   | { k: "submitted"; kind: "contact" | "not_found"; reference: string };
@@ -49,7 +49,7 @@ export default function RequestUser() {
     setBusy(true);
     try {
       const r = await api<StartResp>("/api/online/user-request", { method: "POST", body: { id_card: idCard.trim() }, session: null });
-      if (r.result === "sent") setStage({ k: "sent", channels: r.channels, dev: r.dev_user });
+      if (r.result === "ready") setStage({ k: "ready", channels: r.channels });
       else setStage({ k: "form", kind: r.result, ticket: r.ticket });
       setBusy(false);
     } catch (err) { fail(err); }
@@ -125,7 +125,7 @@ export default function RequestUser() {
               <input id="idc" className={a.input} value={idCard} onChange={(e) => setIdCard(e.target.value)} placeholder="13 หลัก (ไม่ต้องใส่ขีด)" inputMode="numeric" maxLength={20} autoComplete="off" autoFocus />
             </div>
           </div>
-          <div className={a.note}><Icon name="mail" size={17} /><span>หากทะเบียนมีอีเมลหรือเบอร์มือถือของท่านอยู่แล้ว ระบบจะส่ง User ไปที่ช่องทางนั้นทันที (ถ้ามีหลายบัญชี จะส่งให้ครบทุกบัญชี)</span></div>
+          <div className={a.note}><Icon name="mail" size={17} /><span>ใช้กรณีเข้าสู่ระบบด้วยเลขบัตรไม่ได้ เช่น ทะเบียนไม่มีอีเมล/เบอร์มือถือของท่าน หรือไม่พบชื่อในทะเบียน</span></div>
           {err}
           <button type="submit" className={a.cta} disabled={busy}>{busy ? "กำลังตรวจสอบ..." : "ตรวจสอบและขอ User →"}</button>
         </form>
@@ -134,17 +134,16 @@ export default function RequestUser() {
     );
   }
 
-  // ---------- found with a contact: User sent ----------
-  if (stage.k === "sent") {
+  // ---------- found with a contact: the ID card already works ----------
+  if (stage.k === "ready") {
     return (
-      <AuthFrame title="ส่ง User ให้ท่านแล้ว" back={backToId}>
+      <AuthFrame title="ท่านเข้าสู่ระบบได้แล้ว" back={backToId}>
         <div className={a.done}>
-          <span className={a.doneIcon} aria-hidden="true"><Icon name="mail" size={34} /></span>
-          <h3>ตรวจสอบข้อความของท่าน</h3>
-          <p>ระบบส่ง User (เลขทะเบียนผู้ถือหุ้น) ไปที่ <b>{sentToText(stage.channels)}</b> ตามที่ลงทะเบียนไว้กับบริษัท</p>
+          <span className={a.doneIcon} aria-hidden="true"><Icon name="check" size={36} /></span>
+          <h3>ไม่ต้องขอ User เพิ่ม</h3>
+          <p>เลขบัตรของท่านอยู่ในทะเบียนและมีช่องทางติดต่อแล้ว ใช้ <b>เลขบัตรนี้</b> เข้าสู่ระบบได้เลย รหัส OTP จะส่งไปที่ <b>{sentToText(stage.channels)}</b></p>
         </div>
-        {stage.dev && <div className={a.dev}>DEV: User = {stage.dev}</div>}
-        <div className={a.note}><Icon name="warn" size={17} /><span>ถ้าช่องทางนี้ไม่ใช่ของท่านแล้ว หรือไม่ได้รับข้อความ กรุณาติดต่อเจ้าหน้าที่นักลงทุนสัมพันธ์ หรือลงทะเบียนที่หน้างานในวันประชุม</span></div>
+        <div className={a.note}><Icon name="warn" size={17} /><span>ถ้าช่องทางนี้ไม่ใช่ของท่านแล้ว กรุณาติดต่อเจ้าหน้าที่นักลงทุนสัมพันธ์ หรือลงทะเบียนที่หน้างานในวันประชุม</span></div>
         <Link href="/online" className={a.cta}>ไปหน้าเข้าสู่ระบบ →</Link>
       </AuthFrame>
     );
@@ -163,7 +162,7 @@ export default function RequestUser() {
         <ol className={a.timeline}>
           <li className={a.tOk}><i>✓</i><span>ยืนยันช่องทางติดต่อด้วย OTP แล้ว</span></li>
           <li><i>2</i><span>OMD ตรวจสอบ{stage.kind === "not_found" ? "เอกสารกับนายทะเบียนหลักทรัพย์" : "ข้อมูลกับทะเบียนผู้ถือหุ้น"}</span></li>
-          <li><i>3</i><span>อนุมัติ: ได้รับ User ทางอีเมล / มือถือที่ยืนยันไว้ แล้วเข้าสู่ระบบได้ทันที</span></li>
+          <li><i>3</i><span>อนุมัติ: ได้รับแจ้งทางอีเมล / มือถือที่ยืนยันไว้ แล้วเข้าสู่ระบบด้วยเลขบัตรได้ทันที</span></li>
         </ol>
         <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>หากไม่อนุมัติ ระบบจะแจ้งเหตุผลให้ทราบ และท่านยังลงทะเบียนที่หน้างานในวันประชุมได้</span></div>
         <Link href="/online" className={a.ghost}>กลับหน้าเข้าสู่ระบบ</Link>
@@ -227,7 +226,7 @@ export default function RequestUser() {
             <button type="button" role="radio" aria-checked={channel === "sms"} className={channel === "sms" ? a.on : ""} onClick={() => setChannel("sms")}><Icon name="phone" size={17} />SMS</button>
             <button type="button" role="radio" aria-checked={channel === "email"} className={channel === "email" ? a.on : ""} onClick={() => setChannel("email")}><Icon name="mail" size={17} />อีเมล</button>
           </div>
-          <span className={a.hint}>เจ้าหน้าที่จะส่ง User ไปยังช่องทางที่ยืนยันแล้วเมื่ออนุมัติ</span>
+          <span className={a.hint}>เมื่ออนุมัติ เจ้าหน้าที่จะแจ้งไปยังช่องทางที่ยืนยันแล้ว และใช้รับ OTP ตอนเข้าสู่ระบบ</span>
         </div>
 
         {notFound && (

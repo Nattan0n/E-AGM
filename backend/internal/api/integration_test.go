@@ -229,9 +229,12 @@ func TestClosedAgendaIsFrozen(t *testing.T) {
 // holderLogin runs the new holder flow: User -> OTP on file -> (first visit) PDPA + vote method. Returns the token.
 func (v *env) holderLogin(acc string) string {
 	v.t.Helper()
-	code, m, b := v.do("POST", "/api/online/login", "", map[string]any{"account_id": acc})
+	var tax string
+	v.db.QueryRow(`SELECT I_tax FROM holder WHERE Account_id=?`, acc).Scan(&tax)
+	// account_id picks the account when one ID card holds several
+	code, m, b := v.do("POST", "/api/online/login", "", map[string]any{"id_card": tax, "account_id": acc})
 	v.must(code, 200, "online login "+acc, b)
-	code, m, b = v.do("POST", "/api/online/verify-otp", "", map[string]any{"account_id": acc, "otp": m["dev_otp"]})
+	code, m, b = v.do("POST", "/api/online/verify-otp", "", map[string]any{"account_id": m["account_id"], "otp": m["dev_otp"]})
 	v.must(code, 200, "verify "+acc, b)
 	tok := m["token"].(string)
 	if m["needs_consent"] == true {
@@ -251,12 +254,13 @@ func TestOnlineLoginNeedsAContactOnFile(t *testing.T) {
 	v.db.QueryRow(`SELECT COALESCE(M_phone,''),COALESCE(I_Email,'') FROM holder WHERE Account_id='TRU-000010'`).Scan(&phone, &mail)
 	v.db.Exec(`UPDATE holder SET M_phone='', I_Email='' WHERE Account_id='TRU-000010'`)
 	t.Cleanup(func() { v.db.Exec(`UPDATE holder SET M_phone=?, I_Email=? WHERE Account_id='TRU-000010'`, phone, mail) })
-	for _, acc := range []string{"TRU-000010", "NO-SUCH-USER"} {
-		code, m, b := v.do("POST", "/api/online/login", "", map[string]any{"account_id": acc})
+	var tax10 string
+	v.db.QueryRow(`SELECT I_tax FROM holder WHERE Account_id='TRU-000010'`).Scan(&tax10)
+	for _, idc := range []string{tax10, "9999999999991"} {
+		code, _, b := v.do("POST", "/api/online/login", "", map[string]any{"id_card": idc, "account_id": "TRU-000010"})
 		if code != 401 {
-			t.Errorf("login %s: got %d want 401 (%s)", acc, code, b)
+			t.Errorf("login %s: got %d want 401 (%s)", idc, code, b)
 		}
-		_ = m
 	}
 	// a normal holder: OTP to the contacts on file, PDPA on the first visit, then registered
 	tok := v.holderLogin("TRU-000011")
@@ -266,7 +270,9 @@ func TestOnlineLoginNeedsAContactOnFile(t *testing.T) {
 		t.Errorf("after consent: %v", m)
 	}
 	// second login of the year: no consent step
-	code, m, b = v.do("POST", "/api/online/login", "", map[string]any{"account_id": "TRU-000011"})
+	var tax11 string
+	v.db.QueryRow(`SELECT I_tax FROM holder WHERE Account_id='TRU-000011'`).Scan(&tax11)
+	code, m, b = v.do("POST", "/api/online/login", "", map[string]any{"id_card": tax11, "account_id": "TRU-000011"})
 	v.must(code, 200, "login again", b)
 	code, m, b = v.do("POST", "/api/online/verify-otp", "", map[string]any{"account_id": "TRU-000011", "otp": m["dev_otp"]})
 	v.must(code, 200, "verify again", b)
@@ -281,12 +287,12 @@ func TestUserRequest(t *testing.T) {
 		v.db.Exec(`DELETE FROM user_request_file WHERE request_id IN (SELECT id FROM user_request WHERE meeting_year=?)`, testYear)
 		v.db.Exec(`DELETE FROM user_request WHERE meeting_year=?`, testYear)
 	})
-	// found with a contact: the User is sent, nothing else needed
+	// found with a contact: the ID card already works for login
 	var tax string
 	v.db.QueryRow(`SELECT I_tax FROM holder WHERE Account_id='TRU-000011'`).Scan(&tax)
 	code, m, b := v.do("POST", "/api/online/user-request", "", map[string]any{"id_card": tax})
 	v.must(code, 200, "request (found)", b)
-	if m["result"] != "sent" {
+	if m["result"] != "ready" {
 		t.Errorf("found holder: %v", m)
 	}
 	// not in the register: a ticket to continue with documents

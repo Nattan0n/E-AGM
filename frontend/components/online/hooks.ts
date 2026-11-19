@@ -35,11 +35,16 @@ export async function holderLogout(go: (path: string) => void, to = "/") {
 
 export type Channel = "sms" | "email";
 export interface SentTo { channel: Channel; masked: string }
-/** POST /api/online/login */
-export interface LoginResp { sent: boolean; channels: SentTo[]; expires_in: number; dev_otp?: string }
+/** One account under the ID card (when it holds several, the holder picks one). */
+export interface AccountChoice { account_id: string; shares: number; active: boolean }
+/** POST /api/online/login {id_card, account_id?} - either the OTP was sent, or the accounts to choose from. */
+export interface LoginResp { sent?: boolean; channels?: SentTo[]; expires_in?: number; account_id?: string; dev_otp?: string; choose?: AccountChoice[] }
 
 /** Login waiting for its OTP (between /online and /online/otp). */
-export interface Pending { account_id: string; channels: SentTo[]; expires_at: number; dev_otp?: string; resends?: number[] }
+export interface Pending { id_card: string; account_id: string; channels: SentTo[]; expires_at: number; dev_otp?: string; resends?: number[] }
+
+/** "x-xxxx-xxxxx-12-3" style: only the last 4 digits of the ID card are shown. */
+export const maskIdCard = (v: string) => { const d = v.replace(/\D/g, ""); return d.length <= 4 ? d : "•".repeat(d.length - 4) + d.slice(-4); };
 export const PENDING_KEY = "eagm_online_pending";
 export function readPending(): Pending | null {
   try { const r = sessionStorage.getItem(PENDING_KEY); return r ? (JSON.parse(r) as Pending) : null; } catch { return null; }

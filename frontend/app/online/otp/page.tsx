@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { api, errMsg, setSession } from "@/lib/api";
 import { Icon } from "@/components/brand/Icon";
 import { AuthFrame, LOGIN_STEPS } from "@/components/online/AuthFrame";
-import { LoginResp, Pending, clearPending, readPending, writePending } from "@/components/online/hooks";
+import { LoginResp, Pending, clearPending, maskIdCard, readPending, writePending } from "@/components/online/hooks";
 import s from "@/components/online/online.module.css";
 import a from "@/components/online/auth.module.css";
 
@@ -91,9 +91,9 @@ export default function OnlineOtp() {
     if (!pending || busy || cooldown > 0 || limitReached) return;
     setBusy(true); setError(""); setInfo("");
     try {
-      const r = await api<LoginResp>("/api/online/login", { method: "POST", body: { account_id: pending.account_id }, session: null });
+      const r = await api<LoginResp>("/api/online/login", { method: "POST", body: { id_card: pending.id_card, account_id: pending.account_id }, session: null });
       const t = Date.now();
-      const p: Pending = { ...pending, channels: r.channels, expires_at: t + r.expires_in * 1000, dev_otp: r.dev_otp, resends: [...recent, t] };
+      const p: Pending = { ...pending, channels: r.channels ?? pending.channels, expires_at: t + (r.expires_in ?? 600) * 1000, dev_otp: r.dev_otp, resends: [...recent, t] };
       writePending(p); setPending(p); setNow(t);
       setDigits(EMPTY);
       setInfo("ส่งรหัส OTP ใหม่แล้ว รหัสเดิมใช้ไม่ได้");
@@ -106,7 +106,7 @@ export default function OnlineOtp() {
   const code = digits.join("");
 
   return (
-    <AuthFrame title="ยืนยันรหัส OTP" subtitle={pending ? `User: ${pending.account_id}` : undefined} steps={LOGIN_STEPS} step={2} back="/online" backLabel="เปลี่ยน User">
+    <AuthFrame title="ยืนยันรหัส OTP" subtitle={pending ? `เลขบัตร ${maskIdCard(pending.id_card ?? "")}` : undefined} steps={LOGIN_STEPS} step={2} back="/online" backLabel="เปลี่ยนเลขบัตร">
       <div className={a.otpHead}>
         <span className={a.shield} aria-hidden="true"><Icon name="shield" size={30} /></span>
         <span className={a.hint} style={{ fontSize: 13 }}>ระบบส่งรหัส 6 หลักไปที่ช่องทางที่ลงทะเบียนไว้</span>
