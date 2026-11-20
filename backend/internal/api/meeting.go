@@ -21,21 +21,22 @@ type Meeting struct {
 	RoomOpen         bool       `json:"room_open"`     // online room opened by an admin: holders may see the agendas
 	AdvanceEntry     bool       `json:"advance_entry"` // staff may key onsite votes before an agenda is opened
 	QuorumPct        float64    `json:"quorum_pct"`
-	DocumentsURL     string     `json:"documents_url"`     // link to the invitation / meeting documents shown to holders
-	Announcement     string     `json:"announcement"`      // short notice shown to holders in the waiting room
-	ResultsPublished bool       `json:"results_published"` // holders may see the running / closed totals (admin switch)
+	DocumentsURL     string     `json:"documents_url"`      // link to the invitation / meeting documents shown to holders
+	Announcement     string     `json:"announcement"`       // short notice shown to holders in the waiting room
+	ResultsPublished bool       `json:"results_published"`  // holders may see the running / closed totals (admin switch)
+	ReviewDualShares int64      `json:"review_dual_shares"` // User requests of holders with at least this many shares need two approvers (0 = off)
 }
 
 func (m *Meeting) Locked() bool { return m.ClosedAt != nil }
 
-const meetingCols = `id,codemaster,COALESCE(detailmaster,''),COALESCE(datemaster,''),closed_at,online_enabled,advance_entry,room_open,quorum_pct,COALESCE(documents_url,''),COALESCE(announcement,''),results_published`
+const meetingCols = `id,codemaster,COALESCE(detailmaster,''),COALESCE(datemaster,''),closed_at,online_enabled,advance_entry,room_open,quorum_pct,COALESCE(documents_url,''),COALESCE(announcement,''),results_published,review_dual_shares`
 
 type scanner interface{ Scan(...any) error }
 
 func scanMeeting(r scanner) (*Meeting, error) {
 	var m Meeting
 	var closed sql.NullTime
-	if err := r.Scan(&m.ID, &m.Year, &m.Detail, &m.Date, &closed, &m.OnlineEnabled, &m.AdvanceEntry, &m.RoomOpen, &m.QuorumPct, &m.DocumentsURL, &m.Announcement, &m.ResultsPublished); err != nil {
+	if err := r.Scan(&m.ID, &m.Year, &m.Detail, &m.Date, &closed, &m.OnlineEnabled, &m.AdvanceEntry, &m.RoomOpen, &m.QuorumPct, &m.DocumentsURL, &m.Announcement, &m.ResultsPublished, &m.ReviewDualShares); err != nil {
 		return nil, err
 	}
 	if closed.Valid {
@@ -108,6 +109,7 @@ type meetingReq struct {
 	DocumentsURL     *string `json:"documents_url"`
 	Announcement     *string `json:"announcement"`
 	ResultsPublished *bool   `json:"results_published"`
+	ReviewDualShares *int64  `json:"review_dual_shares"`
 }
 
 func (s *Server) updateMeeting(c echo.Context) error {
@@ -156,9 +158,16 @@ func (s *Server) updateMeeting(c echo.Context) error {
 			return bad("ประกาศยาวเกิน 500 ตัวอักษร")
 		}
 	}
+	dual := m.ReviewDualShares
+	if r.ReviewDualShares != nil {
+		if *r.ReviewDualShares < 0 {
+			return bad("เกณฑ์หุ้นต้องไม่ติดลบ")
+		}
+		dual = *r.ReviewDualShares
+	}
 	if _, err := s.DB.ExecContext(c.Request().Context(),
-		`UPDATE master SET detailmaster=?,datemaster=?,online_enabled=?,advance_entry=?,quorum_pct=?,documents_url=?,announcement=?,results_published=? WHERE id=?`,
-		r.Detail, r.Date, online, advance, r.QuorumPct, docs, note, published, m.ID); err != nil {
+		`UPDATE master SET detailmaster=?,datemaster=?,online_enabled=?,advance_entry=?,quorum_pct=?,documents_url=?,announcement=?,results_published=?,review_dual_shares=? WHERE id=?`,
+		r.Detail, r.Date, online, advance, r.QuorumPct, docs, note, published, dual, m.ID); err != nil {
 		return err
 	}
 	s.audit(c, "", "meeting_update", r)

@@ -23,12 +23,19 @@ import (
 // OTPSender delivers a one-time code. Production: SMTP / SMS gateway; dev: log to stdout.
 type OTPSender interface {
 	Send(channel, to, code string) error
+	// Notify sends a plain message (e.g. the result of a User request) over the same channels.
+	Notify(channel, to, msg string) error
 }
 
 type LogOTPSender struct{}
 
 func (LogOTPSender) Send(channel, to, code string) error {
 	log.Printf("[DEV OTP] %s -> %s : %s", channel, to, code)
+	return nil
+}
+
+func (LogOTPSender) Notify(channel, to, msg string) error {
+	log.Printf("[DEV NOTIFY] %s -> %s : %s", channel, to, msg)
 	return nil
 }
 
@@ -87,8 +94,13 @@ type idCardHit struct {
 }
 
 func holdersByIDCard(ctx context.Context, d *sql.DB, idc, acc string) ([]idCardHit, error) {
-	rows, err := d.QueryContext(ctx, `SELECT Account_id, COALESCE(Q_share,0), COALESCE(M_phone,''), COALESCE(I_Email,'') FROM holder
-		WHERE REGEXP_REPLACE(COALESCE(I_tax,''), '[^0-9]', '') = ? AND (?='' OR Account_id=?) ORDER BY Account_id LIMIT 20`, idc, acc, acc)
+	// the register first; contacts approved by OMD (holder_contact) fill in a missing e-mail / mobile, and their ID card
+	// also finds the account (the register may hold a different or old number)
+	rows, err := d.QueryContext(ctx, `SELECT h.Account_id, COALESCE(h.Q_share,0),
+			COALESCE(NULLIF(TRIM(h.M_phone),''), hc.phone, ''), COALESCE(NULLIF(TRIM(h.I_Email),''), hc.email, '')
+		FROM holder h LEFT JOIN holder_contact hc ON hc.account_id = h.Account_id
+		WHERE (REGEXP_REPLACE(COALESCE(h.I_tax,''), '[^0-9]', '') = ? OR hc.id_card = ?) AND (?='' OR h.Account_id=?)
+		ORDER BY h.Account_id LIMIT 20`, idc, idc, acc, acc)
 	if err != nil {
 		return nil, err
 	}

@@ -106,5 +106,15 @@ export async function download(path: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Authenticated file for showing in the page (e.g. a document attached to a User request): an object URL to revoke when done. */
+export async function fetchBlobUrl(path: string): Promise<string> {
+  const s = getSession<StaffSession>("staff");
+  let res: Response;
+  try { res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${s?.token ?? ""}` } }); }
+  catch { throw new ApiError(0, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+  if (!res.ok) throw new ApiError(res.status, "เปิดไฟล์ไม่สำเร็จ");
+  return URL.createObjectURL(await res.blob());
+}
+
 export const CHOICE_LABEL: Record<string, string> = { agree: "เห็นด้วย", disagree: "ไม่เห็นด้วย", abstain: "งดออกเสียง", spoiled: "บัตรเสีย", split: "แบ่งคะแนน" };
 export const fmt = (n: number) => n.toLocaleString("th-TH");

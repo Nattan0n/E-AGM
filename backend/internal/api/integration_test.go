@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -305,6 +306,82 @@ func TestUserRequest(t *testing.T) {
 	code, _, _ = v.do("POST", "/api/online/user-request/verify", "", map[string]any{"ticket": strings.Repeat("a", 48), "otp": "123456"})
 	if code != 401 {
 		t.Errorf("unknown ticket: got %d want 401", code)
+	}
+}
+
+// OMD Review: a holder without a contact on file gets one approved by OMD (two approvers over the share threshold),
+// then logs in with the ID card; a rejection needs a reason.
+func TestOMDReview(t *testing.T) {
+	v := setup(t)
+	const acc = "TRU-000015"
+	var tax, phone, email string
+	var shares int64
+	v.db.QueryRow(`SELECT COALESCE(I_tax,''),COALESCE(M_phone,''),COALESCE(I_Email,''),COALESCE(Q_share,0) FROM holder WHERE Account_id=?`, acc).Scan(&tax, &phone, &email, &shares)
+	idc := nonDigit.ReplaceAllString(tax, "")
+	v.db.Exec(`UPDATE holder SET M_phone=NULL,I_Email=NULL WHERE Account_id=?`, acc)
+	t.Cleanup(func() {
+		v.db.Exec(`UPDATE holder SET M_phone=?,I_Email=? WHERE Account_id=?`, nullStr(phone), nullStr(email), acc)
+		v.db.Exec(`DELETE FROM holder_contact WHERE account_id=?`, acc)
+		v.db.Exec(`DELETE FROM user_request WHERE meeting_year=?`, testYear)
+	})
+	newReq := func() int {
+		res, err := v.db.Exec(`INSERT INTO user_request(meeting_year,kind,acc_ids,id_card,full_name,phone,otp_channel,ticket_hash,status,submitted_at)
+			VALUES(?,'contact',?,?,'test','0812345678','sms',?, 'pending', NOW())`, testYear, acc, idc, strings.Repeat("b", 64))
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, _ := res.LastInsertId()
+		return int(id)
+	}
+
+	// cannot log in yet: no contact
+	code, _, _ := v.do("POST", "/api/online/login", "", map[string]any{"id_card": idc})
+	if code == 200 {
+		t.Fatalf("login without a contact should fail")
+	}
+
+	// reject needs a reason
+	id := newReq()
+	code, _, _ = v.do("POST", fmt.Sprintf("/api/user-requests/%d/reject", id), v.stf, map[string]any{"reason": " "})
+	v.must(code, 400, "reject without reason", nil)
+	code, _, b := v.do("POST", fmt.Sprintf("/api/user-requests/%d/reject", id), v.stf, map[string]any{"reason": "ชื่อไม่ตรง"})
+	v.must(code, 200, "reject", b)
+	code, _, _ = v.do("POST", fmt.Sprintf("/api/user-requests/%d/approve", id), v.stf, map[string]any{"account_ids": []string{acc}})
+	v.must(code, 409, "approve a rejected request", nil)
+
+	// two approvers over the threshold
+	v.db.Exec(`UPDATE master SET review_dual_shares=? WHERE codemaster=?`, shares, testYear)
+	id = newReq()
+	code, m, b := v.do("POST", fmt.Sprintf("/api/user-requests/%d/approve", id), v.stf, map[string]any{"account_ids": []string{acc}})
+	v.must(code, 200, "first approval", b)
+	if m["awaiting_second"] != true {
+		t.Fatalf("expected a second approver: %v", m)
+	}
+	code, _, _ = v.do("POST", fmt.Sprintf("/api/user-requests/%d/approve", id), v.stf, map[string]any{"account_ids": []string{acc}})
+	v.must(code, 409, "same approver twice", nil)
+	code, m, b = v.do("POST", fmt.Sprintf("/api/user-requests/%d/approve", id), v.adm, map[string]any{"account_ids": []string{acc}})
+	v.must(code, 200, "second approval", b)
+	if m["status"] != "approved" {
+		t.Fatalf("not approved: %v", m)
+	}
+
+	// the approved contact now works for login
+	code, m, b = v.do("POST", "/api/online/login", "", map[string]any{"id_card": idc, "account_id": acc})
+	v.must(code, 200, "login after approval", b)
+	if m["sent"] != true {
+		t.Errorf("login after approval: %v", m)
+	}
+
+	// list / detail
+	code, m, b = v.do("GET", "/api/user-requests?status=approved", v.stf, nil)
+	v.must(code, 200, "list", b)
+	if m["counts"].(map[string]any)["approved"].(float64) < 1 {
+		t.Errorf("counts: %v", m["counts"])
+	}
+	code, m, b = v.do("GET", fmt.Sprintf("/api/user-requests/%d", id), v.stf, nil)
+	v.must(code, 200, "detail", b)
+	if hs := m["holders"].([]any); len(hs) != 1 || hs[0].(map[string]any)["id_match"] != true {
+		t.Errorf("holders: %v", m["holders"])
 	}
 }
 

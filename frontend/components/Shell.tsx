@@ -22,6 +22,7 @@ export const STAFF_NAV: NavItem[] = [
   { href: "/staff/novote", label: "ไม่มีสิทธิ์", icon: "ban" },
   { href: "/staff/summary", label: "สรุปผล", icon: "chart" },
   { href: "/staff/roll-call", label: "ผลรายคน", icon: "list" },
+  { href: "/staff/requests", label: "คำขอ User", icon: "idcard" },
 ];
 export const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "dashboard" },
@@ -74,7 +75,9 @@ export function Shell({ session, nav, children }: { session: StaffSession; nav: 
   useEffect(() => { if (fetched) meetingCache = fetched; }, [fetched]);
   const meeting = fetched ?? meetingCache;
   // Admin can do everything staff can: show the on-site (staff) menu under the admin one.
-  const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))] : nav;
+  // User requests hold ID cards and documents (PDPA): not for viewers.
+  const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))]
+    : nav.filter((n) => session.role !== "viewer" || n.href !== "/staff/requests");
   // One entrance sequence for every admin page: each top-level box gets its place in document order (--ent), whatever wrapper it sits in.
   const mainRef = useRef<HTMLElement>(null);
   useEffect(() => {

@@ -18,14 +18,18 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
   const canPublish = typeof m.results_published === "boolean"; // hidden while the backend does not know the field
   const [docs, setDocs] = useState(m.documents_url ?? "");
   const [note, setNote] = useState(m.announcement ?? "");
+  const [dual, setDual] = useState(String(m.review_dual_shares ?? 0));
+  const canDual = typeof m.review_dual_shares === "number"; // hidden while the backend does not know the field
+  const dn = Number(dual);
+  const dualOk = Number.isInteger(dn) && dn >= 0;
   const closed = !!m.closed_at;
   const q = Number(quorum);
   const qOk = q > 0 && q <= 100;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
-    if (!qOk) return;
-    const ok = await run(() => api("/api/admin/meeting", { method: "PUT", body: { detail, date, quorum_pct: q, online_enabled: online, advance_entry: advance, documents_url: docs, announcement: note, ...(canPublish ? { results_published: published } : {}) } }), "บันทึกการตั้งค่าแล้ว");
+    if (!qOk || !dualOk) return;
+    const ok = await run(() => api("/api/admin/meeting", { method: "PUT", body: { detail, date, quorum_pct: q, online_enabled: online, advance_entry: advance, documents_url: docs, announcement: note, ...(canPublish ? { results_published: published } : {}), ...(canDual ? { review_dual_shares: dn } : {}) } }), "บันทึกการตั้งค่าแล้ว");
     if (ok) onDone();
   };
 
@@ -60,7 +64,13 @@ function MeetingForm({ m, onDone }: { m: Meeting; onDone: () => void }) {
             <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>แสดงที่หน้า &quot;ผลมติ&quot; ของผู้ถือหุ้นออนไลน์ เฉพาะวาระที่ปิดโหวตแล้ว และเฉพาะยอดรวม (ไม่เห็นว่าใครลงคะแนนอย่างไร) — เปิดเมื่อประธานประกาศผลแล้ว</p>
           </>
         )}
-        <button type="submit" className="btn btn-primary" disabled={closed || busy || !qOk}>{busy ? "กำลังบันทึก..." : "บันทึก"}</button>
+        {canDual && (
+          <div className="field"><label className="label" htmlFor="mdual">คำขอ User: ผู้ถือหุ้นรายใหญ่ต้องอนุมัติ 2 คน เมื่อหุ้นรวมตั้งแต่ (หุ้น)</label>
+            <input id="mdual" className="input" type="number" min="0" step="1" inputMode="numeric" disabled={closed} value={dual} onChange={(e) => setDual(e.target.value)} />
+            {!dualOk && <p className="error-text">ต้องเป็นจำนวนเต็มตั้งแต่ 0</p>}
+            <p className="muted" style={{ fontSize: 12 }}>0 = ปิด (เจ้าหน้าที่ OMD อนุมัติคนเดียว) — ถ้าตั้งไว้ คำขอที่หุ้นรวมถึงเกณฑ์ต้องให้เจ้าหน้าที่อีกคนอนุมัติซ้ำ</p></div>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={closed || busy || !qOk || !dualOk}>{busy ? "กำลังบันทึก..." : "บันทึก"}</button>
       </div>
       {node}
     </form>

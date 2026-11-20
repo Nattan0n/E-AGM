@@ -1,7 +1,7 @@
 // Demo mode (NEXT_PUBLIC_MOCK=1): answers /api/* calls from in-memory data so the UI can be tried without the Go backend.
 import type {
   Agenda, AttendeeRow, AuditRow, Choice, GroupItem, GroupMember, HolderItem, HolderResultRow, HolderResults, LateRow, Meeting, NovoteRow, OnlineAgenda, OnlineRegRow,
-  Receipt, RollRow, Stats, Summary, Tally, TermResult, UserRow, VoteRow,
+  Receipt, RequestFile, ReviewHolder, RollRow, Stats, Summary, Tally, TermResult, UserRequestDetail, UserRequestRow, UserRow, VoteRow,
 } from "./types";
 
 export const MOCK = process.env.NEXT_PUBLIC_MOCK === "1";
@@ -12,6 +12,9 @@ interface Reg { type: "person" | "proxy" | "group"; channel: "onsite" | "online"
 interface State {
   meeting: Meeting; agendas: Agenda[]; regs: Record<string, Reg>; late: Record<string, string>; novote: NovoteRow[];
   groups: { id: number; name: string; members: GroupMember[] }[]; users: UserRow[]; votes: Record<string, Record<string, Vote>>; seq: number;
+  // added later: absent in a state saved by an older build, so they are created on first use
+  requests?: MockReq[]; contacts?: Record<string, MockContact>;
+  reqDraft?: { ticket: string; kind: "contact" | "not_found"; id_card: string; full_name: string; phone: string; email: string; channel: "sms" | "email"; note: string; files: string[] };
 }
 
 const NAMES = ["สมชาย ใจดี", "สมหญิง รักไทย", "วิชัย มั่นคง", "ประเสริฐ ศรีสุข", "มาลี สุขสันต์", "อนันต์ เจริญผล", "กัญญา วงศ์ไทย", "ธนากร พัฒนา",
@@ -35,7 +38,7 @@ function seed(): State {
     mk(5, "5", "พิจารณาเลือกตั้งกรรมการแทนกรรมการที่ออกตามวาระ", "pending", "ordinary"),
     mk(6, "6", "พิจารณาแก้ไขเพิ่มเติมข้อบังคับของบริษัท", "pending", "special"),
   ];
-  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, documents_url: "", announcement: "", quorum_pct: 25, results_published: false };
+  const meeting: Meeting = { id: 1, year: "2569", detail: "การประชุมสามัญผู้ถือหุ้น ประจำปี 2569 (ตัวอย่าง)", date: new Date().toISOString().slice(0, 10), closed_at: null, online_enabled: true, advance_entry: false, room_open: true, documents_url: "", announcement: "", quorum_pct: 25, results_published: false, review_dual_shares: 0 };
   const regs: Record<string, Reg> = {};
   const now = new Date().toISOString();
   HOLDERS.slice(0, 8).forEach((h, i) => { regs[h.account_id] = { type: i === 2 ? "proxy" : "person", channel: "onsite", vote_mode: "self", shares: h.shares, at: now }; });
@@ -161,6 +164,111 @@ function audit(): AuditRow[] {
   return acts.map(([action, acc, detail], i) => ({ id: i + 1, acc_id: acc, action, detail: JSON.stringify(detail), ip: "10.0.0.5", created_at: new Date(Date.now() - i * 600000).toISOString() }));
 }
 
+// ---- User requests (OMD Review) ----
+type MockReq = UserRequestRow & { files_list: RequestFile[]; ticket: string; first_by_user: string };
+interface MockContact { id_card: string; phone: string; email: string; request_id: number }
+
+function seedRequests(): MockReq[] {
+  const ago = (h: number) => new Date(Date.now() - h * 3600000).toISOString();
+  const base = (id: number, o: Partial<MockReq>): MockReq => ({
+    id, reference: `REQ-${String(id).padStart(6, "0")}`, kind: "not_found", status: "pending", id_card: "", full_name: "", phone: "", email: "", otp_channel: "sms",
+    note: "", acc_ids: [], approve_acc: [], files: 0, submitted_at: ago(id), reason: "", reviewed_by: "", reviewed_at: null, call_note: "", called_by: "", called_at: null,
+    first_by: "", first_at: null, first_by_me: false, notified: false, files_list: [], ticket: `seed${id}`.padEnd(48, "0"), first_by_user: "", ...o,
+  });
+  const f = (id: number, filename: string, content_type: string, size: number): RequestFile => ({ id, filename, content_type, size });
+  const h15 = HOLDERS[14], h19 = HOLDERS[18];
+  return [
+    base(124, { kind: "contact", acc_ids: [h15.account_id], id_card: h15.id_card, phone: "0891112233", note: "เปลี่ยนเบอร์มือถือใหม่ ทะเบียนเดิมไม่มีเบอร์", submitted_at: ago(0.4) }),
+    base(123, { full_name: "นายสมชาย ใจดี", id_card: "3101700123456", phone: "0865554433", email: "somchai.j@example.com", note: "เปลี่ยนบัตรประชาชนใหม่ เลขไม่ตรงกับในทะเบียนเดิม", files: 2,
+      files_list: [f(1, "บัตรประชาชน.jpg", "image/jpeg", 412000), f(2, "ใบหุ้น.pdf", "application/pdf", 890000)], submitted_at: ago(2) }),
+    base(122, { full_name: "บริษัท ไทยพัฒนา จำกัด", id_card: "0105551234567", email: "ir@thaipattana.example.com", otp_channel: "email", note: "ผู้รับมอบอำนาจ: นางสาวนภา ทองดี", files: 1,
+      files_list: [f(3, "หนังสือรับรองบริษัท.pdf", "application/pdf", 1200000)], call_note: "โทรยืนยันกับคุณนภาแล้ว ขอเอกสารมอบอำนาจเพิ่ม", called_by: "เจ้าหน้าที่ ตัวอย่าง", called_at: ago(1), submitted_at: ago(5) }),
+    base(118, { kind: "contact", status: "approved", acc_ids: [h19.account_id], approve_acc: [h19.account_id], id_card: h19.id_card, email: "wanna.j@example.com", otp_channel: "email",
+      reviewed_by: "เจ้าหน้าที่ ตัวอย่าง", reviewed_at: ago(20), call_note: "โทรยืนยันตัวตนแล้ว", called_by: "เจ้าหน้าที่ ตัวอย่าง", called_at: ago(21), notified: true, submitted_at: ago(26) }),
+    base(117, { status: "rejected", full_name: "นายปกรณ์ ศรีวงศ์", id_card: "1209900456781", phone: "0817778899", files: 1, files_list: [f(4, "สำเนาบัตร.png", "image/png", 300000)],
+      reason: "ไม่พบชื่อในทะเบียน ณ วันปิดสมุดทะเบียน (ตรวจกับ TSD แล้ว)", reviewed_by: "เจ้าหน้าที่ ตัวอย่าง", reviewed_at: ago(30), notified: true, submitted_at: ago(40) }),
+  ];
+}
+
+const staffMe = () => { try { return JSON.parse(sessionStorage.getItem("eagm_staff") ?? "{}") as { name?: string; username?: string }; } catch { return {}; } };
+
+function reviewHolder(h: Holder, req: MockReq): ReviewHolder {
+  const c = S().contacts?.[h.account_id];
+  return { account_id: h.account_id, name: h.name, shares: h.shares, masked_id: `xxxxxxxxx${h.id_card.slice(-4)}`, id_match: h.id_card === req.id_card,
+    phone: c?.phone ? "XXXXXX" + c.phone.slice(-4) : h.account_id === "1015" ? "" : "XXXXXX" + h.phone.slice(-4), email: "",
+    bound_to: c && c.request_id !== req.id ? `REQ-${String(c.request_id).padStart(6, "0")}` : "" };
+}
+
+function requestRow(r: MockReq): UserRequestRow {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { files_list, ticket, first_by_user, ...row } = r;
+  return { ...row, first_by_me: !!first_by_user && first_by_user === staffMe().username };
+}
+
+function requestDetail(r: MockReq): UserRequestDetail {
+  const s = S();
+  const accs = [...new Set([...r.acc_ids, ...r.approve_acc])];
+  const holders = accs.map(hold).filter((h): h is Holder => !!h).map((h) => reviewHolder(h, r));
+  let suggest: ReviewHolder[] = [];
+  if (r.kind === "not_found" && r.full_name) {
+    const parts = r.full_name.replace(/^(นาย|นางสาว|นาง)\s*/, "").split(/\s+/).filter(Boolean);
+    suggest = HOLDERS.filter((h) => parts.length && h.name.startsWith(parts[0]) && (parts.length < 2 || h.name.includes(parts[parts.length - 1]))).map((h) => reviewHolder(h, r));
+  }
+  const warnings: string[] = [];
+  const same = (s.requests ?? []).filter((x) => x.id !== r.id && x.id_card === r.id_card);
+  if (same.length) warnings.push("เลขบัตรนี้มีคำขออื่นด้วย: " + same.map((x) => x.reference).join(", "));
+  const used = HOLDERS.filter((h) => r.phone && h.phone === r.phone && !accs.includes(h.account_id));
+  if (used.length) warnings.push("เบอร์/อีเมลนี้ใช้กับบัญชีของผู้ถือหุ้นรายอื่นอยู่แล้ว: " + used.map((h) => h.account_id).join(", "));
+  holders.filter((h) => h.bound_to).forEach((h) => warnings.push(`บัญชี ${h.account_id} ผูกช่องทางติดต่อจาก ${h.bound_to} ไว้แล้ว — อนุมัติจะแทนที่ของเดิม`));
+  return { request: requestRow(r), holders, suggest, files: r.files_list, warnings };
+}
+
+function reviewWrite(seg: string[], b: Record<string, unknown>): unknown {
+  const s = S();
+  const r = (s.requests ??= seedRequests()).find((x) => String(x.id) === seg[1]);
+  if (!r) return err404();
+  if (r.status !== "pending") throw Object.assign(new Error("คำขอนี้ตรวจเสร็จแล้ว"), { __mockStatus: 409 });
+  const me = staffMe(), by = me.name || me.username || "เจ้าหน้าที่";
+  const now = new Date().toISOString();
+  const fail = (m: string, st = 400): never => { throw Object.assign(new Error(m), { __mockStatus: st }); };
+  if (seg[2] === "call") {
+    const note = String(b.note ?? "").trim();
+    if (!note) fail("กรุณาบันทึกผลการโทร");
+    Object.assign(r, { call_note: note, called_by: by, called_at: now });
+    return {};
+  }
+  if (seg[2] === "reject") {
+    const reason = String(b.reason ?? "").trim();
+    if (!reason) fail("กรุณาระบุเหตุผลที่ปฏิเสธ");
+    Object.assign(r, { status: "rejected", reason, reviewed_by: by, reviewed_at: now, first_by: "", first_at: null, first_by_user: "", notified: true });
+    return { status: "rejected", notified: true };
+  }
+  // approve
+  const accs = [...new Set(((b.account_ids as string[]) ?? []).map((a) => String(a).trim()).filter(Boolean))].sort();
+  if (!accs.length) fail("กรุณาเลือกบัญชีผู้ถือหุ้นที่จะผูกกับคำขอนี้");
+  const hs = accs.map(hold);
+  if (hs.some((h) => !h)) fail("ไม่พบบัญชีผู้ถือหุ้นบางรายการในทะเบียน");
+  const shares = hs.reduce((a, h) => a + (h?.shares ?? 0), 0);
+  const dual = s.meeting.review_dual_shares ?? 0;
+  if (dual > 0 && shares >= dual) {
+    if (!r.first_by_user) { Object.assign(r, { first_by: by, first_at: now, first_by_user: me.username ?? "", approve_acc: accs }); return { status: "pending", awaiting_second: true }; }
+    if (r.first_by_user === me.username) fail("ผู้ถือหุ้นรายใหญ่ต้องให้เจ้าหน้าที่อีกคนเป็นผู้อนุมัติคนที่ 2", 409);
+    if (r.approve_acc.join(",") !== accs.join(",")) fail(`บัญชีที่เลือกไม่ตรงกับที่ผู้อนุมัติคนแรกเลือกไว้ (${r.approve_acc.join(",")})`, 409);
+  }
+  s.contacts ??= {};
+  accs.forEach((a) => { s.contacts![a] = { id_card: r.id_card, phone: r.phone, email: r.email, request_id: r.id }; });
+  Object.assign(r, { status: "approved", approve_acc: accs, reviewed_by: r.first_by ? `${r.first_by}, ${by}` : by, reviewed_at: now, notified: true });
+  return { status: "approved", notified: true };
+}
+const err404 = (): never => { throw Object.assign(new Error("ไม่พบคำขอ"), { __mockStatus: 404 }); };
+
+/** Demo documents: a drawn placeholder instead of a real scan. */
+export function mockDocUrl(f: RequestFile): string {
+  const esc = (t: string) => t.replace(/[<>&"]/g, "");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><rect width="640" height="420" rx="18" fill="#eef4ff"/><rect x="24" y="24" width="592" height="372" rx="14" fill="#fff" stroke="#c7d6f5" stroke-width="2"/><rect x="56" y="96" width="150" height="190" rx="10" fill="#dbe6fb"/><circle cx="131" cy="160" r="34" fill="#b5c9f1"/><rect x="88" y="208" width="86" height="56" rx="28" fill="#b5c9f1"/><g fill="#cbd5e1"><rect x="236" y="110" width="320" height="16" rx="8"/><rect x="236" y="146" width="260" height="14" rx="7"/><rect x="236" y="180" width="300" height="14" rx="7"/><rect x="236" y="214" width="200" height="14" rx="7"/></g><text x="56" y="70" font-family="sans-serif" font-size="22" font-weight="700" fill="#1e3a8a">${esc(f.filename)}</text><text x="56" y="350" font-family="sans-serif" font-size="18" fill="#64748b">เอกสารตัวอย่าง (โหมดทดลอง) — ไม่ใช่ข้อมูลจริง</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 const HOLDER_TOKEN_ACC = () => { try { return (JSON.parse(sessionStorage.getItem("eagm_holder") ?? "{}") as { account_id?: string }).account_id ?? "1009"; } catch { return "1009"; } };
 
 /** Like a real API, every response is a fresh copy: handing out the live state objects would let React see a changed
@@ -181,7 +289,7 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
 
   if (method === "GET") {
     switch (seg[0]) {
-      case "meeting": return s.meeting;
+      case "meeting": return { ...s.meeting, review_dual_shares: s.meeting.review_dual_shares ?? 0 };
       case "stats": return stats();
       case "summary": return summary();
       case "agendas": return s.agendas;
@@ -201,6 +309,18 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
         if (seg[1] === "onsite" && seg[2]) return voteRows(seg[2]);
         if (seg[1] === "roll") return rollRows(q.get("term_id") ?? "");
         break;
+      case "user-requests": {
+        const reqs = (s.requests ??= seedRequests());
+        if (seg[1]) { const r = reqs.find((x) => String(x.id) === seg[1]); return r ? requestDetail(r) : err404(); }
+        const status = q.get("status"), t = (q.get("q") ?? "").trim().toLowerCase();
+        const items = reqs.filter((r) => (!status || status === "all" || r.status === status) &&
+          (!t || [r.full_name, r.id_card, r.phone, r.email, r.reference, ...r.acc_ids, ...r.approve_acc].some((v) => v.toLowerCase().includes(t))))
+          .sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending") || String(b.submitted_at).localeCompare(String(a.submitted_at)));
+        const counts = { pending: 0, approved: 0, rejected: 0 };
+        reqs.forEach((r) => { counts[r.status]++; });
+        save();
+        return { items: items.map(requestRow), counts, dual_shares: s.meeting.review_dual_shares ?? 0 };
+      }
       case "late": return Object.entries(s.late).map(([id, at]): LateRow => ({ account_id: id, name: hold(id)?.name ?? id, shares: s.regs[id]?.shares ?? 0, arrived_at: at, term_id: "3" }));
       case "novote": return s.novote.filter((n) => !q.get("term_id") || n.term_id === q.get("term_id"));
       case "online": {
@@ -265,7 +385,8 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
       if (seg[1] === "logout") return out({});
       if (seg[1] === "login") {
         const idc = String(b.id_card ?? "").replace(/\D/g, "");
-        const h = HOLDERS.find((x) => x.id_card === idc);
+        const bound = Object.entries(s.contacts ?? {}).find(([, c]) => c.id_card === idc)?.[0]; // approved by OMD
+        const h = HOLDERS.find((x) => x.id_card === idc) ?? (bound ? hold(bound) : undefined);
         if (!h) err(401, "ไม่สามารถเข้าสู่ระบบด้วยเลขบัตรนี้ได้ กรุณาตรวจสอบเลขบัตร หรือกด \"ขอ User\"");
         if (s.regs[h!.account_id]?.channel === "onsite") err(409, "ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว");
         return { sent: true, account_id: h!.account_id, channels: [{ channel: "sms", masked: "XXXXXX" + h!.phone.slice(-4) }, { channel: "email", masked: "h*****@example.com" }], expires_in: 600, dev_otp: "123456" };
@@ -285,11 +406,38 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
         if (!seg[2]) {
           const idc = String(b.id_card ?? "").replace(/\D/g, "");
           const h = HOLDERS.find((x) => x.id_card === idc);
-          if (h) return { result: "ready", channels: [{ channel: "sms", masked: "XXXXXX" + h.phone.slice(-4) }] };
-          return { result: idc.endsWith("0") ? "contact" : "not_found", ticket: "m".repeat(48) };
+          if (h || Object.values(s.contacts ?? {}).some((c) => c.id_card === idc)) return { result: "ready", channels: [{ channel: "sms", masked: "XXXXXX" + (h?.phone ?? "0000").slice(-4) }] };
+          const kind = idc.endsWith("0") ? "contact" : "not_found";
+          const ticket = Array.from({ length: 48 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+          s.reqDraft = { ticket, kind, id_card: idc, full_name: "", phone: "", email: "", channel: "sms", note: "", files: [] };
+          return out({ result: kind, ticket });
         }
-        if (seg[2] === "contact") { const ch = b.channel === "email" ? "email" : "sms"; return { sent: true, channel: ch, masked_to: ch === "email" ? "e****@example.com" : "XXXXXX5678", expires_in: 600, dev_otp: "123456" }; }
-        if (seg[2] === "verify") { if (String(b.otp) !== "123456") err(401, "OTP ไม่ถูกต้องหรือหมดอายุ"); return { status: "pending", reference: "REQ-000123" }; }
+        if (seg[2] === "contact") {
+          const ch = b.channel === "email" ? "email" : "sms";
+          const d = s.reqDraft;
+          if (d) {
+            const files = Object.entries(b).filter(([k]) => k === "files").map(([, v]) => (v as File)?.name).filter(Boolean);
+            Object.assign(d, { phone: String(b.phone ?? "").replace(/\D/g, ""), email: String(b.email ?? ""), channel: ch, full_name: String(b.full_name ?? ""), note: String(b.note ?? ""), ...(files.length ? { files } : {}) });
+          }
+          return out({ sent: true, channel: ch, masked_to: ch === "email" ? "e****@example.com" : "XXXXXX5678", expires_in: 600, dev_otp: "123456" });
+        }
+        if (seg[2] === "verify") {
+          if (String(b.otp) !== "123456") err(401, "OTP ไม่ถูกต้องหรือหมดอายุ");
+          const reqs = (s.requests ??= seedRequests());
+          const d = s.reqDraft;
+          const id = Math.max(124, ...reqs.map((r) => r.id)) + 1;
+          const acc = d?.kind === "contact" ? [HOLDERS[14].account_id] : [];
+          const files = (d?.files ?? []).map((name, i): RequestFile => ({ id: id * 10 + i, filename: name, content_type: /\.pdf$/i.test(name) ? "application/pdf" : "image/jpeg", size: 250000 }));
+          reqs.push({ ...seedRequests()[0], id, reference: `REQ-${String(id).padStart(6, "0")}`, kind: d?.kind ?? "not_found", acc_ids: acc, id_card: d?.id_card ?? "", full_name: d?.full_name ?? "",
+            phone: d?.phone ?? "", email: d?.email ?? "", otp_channel: d?.channel ?? "sms", note: d?.note ?? "", files: files.length, files_list: files, ticket: d?.ticket ?? "", submitted_at: new Date().toISOString() });
+          delete s.reqDraft;
+          return out({ status: "pending", reference: `REQ-${String(id).padStart(6, "0")}` });
+        }
+        if (seg[2] === "status") {
+          const r = (s.requests ?? []).find((x) => x.ticket === b.ticket);
+          if (!r) err(404, "ไม่พบคำขอ");
+          return { status: r!.status, reference: r!.reference, ...(r!.status === "rejected" ? { reason: r!.reason } : {}) };
+        }
       }
       if (seg[1] === "vote-mode") { const acc = HOLDER_TOKEN_ACC(); if (s.regs[acc]) s.regs[acc].vote_mode = (b.mode as "self" | "staff") ?? "self"; return out({}); }
       if (seg[1] === "vote") {
@@ -319,6 +467,7 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
       if (method === "DELETE" && seg[1]) { delete s.regs[seg[1]]; Object.values(s.votes).forEach((m) => delete m[seg[1]]); return out({}); }
       break;
     }
+    case "user-requests": return out(reviewWrite(seg, b));
     case "late": s.late[String(b.account_id)] = new Date().toISOString(); return out({});
     case "novote": {
       if (method === "POST") {

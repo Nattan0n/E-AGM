@@ -39,6 +39,7 @@ const P: Record<string, ReactNode> = {
   ballotX: <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="m9 9 6 6M15 9l-6 6" /></>,
   power: <><path d="M12 3.5v8" /><path d="M6.6 6.8a8 8 0 1 0 10.8 0" /></>,
   dashboard: <><rect x="3.5" y="3.5" width="7" height="8.5" rx="1.6" /><rect x="13.5" y="3.5" width="7" height="5" rx="1.6" /><rect x="13.5" y="11.5" width="7" height="9" rx="1.6" /><rect x="3.5" y="15" width="7" height="5.5" rx="1.6" /></>,
+  idcard: <><rect x="2.8" y="5" width="18.4" height="14" rx="2.4" /><circle cx="8.6" cy="11" r="2.1" /><path d="M5.6 16.2c.5-1.6 1.6-2.4 3-2.4s2.5.8 3 2.4M14 9.8h4M14 13h4" /></>,
   broom: <><path d="M14.5 3.5 10 10" /><path d="M8.5 9.5 14 15l-3 5.5c-3.2 0-6.5-2-7.5-5.5L8.5 9.5Z" /></>,
 };
 

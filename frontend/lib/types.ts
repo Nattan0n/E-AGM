@@ -6,7 +6,24 @@ export type AgendaStatus = "pending" | "open" | "closed";
 
 export interface Meeting { id: number; year: string; detail: string; date: string; closed_at: string | null; online_enabled: boolean; advance_entry: boolean; room_open: boolean; quorum_pct: number; documents_url: string; announcement: string;
   /** Admin switch: holders may see the totals of CLOSED agendas on /online/results. Absent on a backend that does not know it yet. */
-  results_published?: boolean }
+  results_published?: boolean;
+  /** User requests of holders with at least this many shares need two approvers (0 = off). */
+  review_dual_shares?: number }
+
+/** OMD Review of a User request (flow page 17). */
+export type UserRequestStatus = "pending" | "approved" | "rejected";
+export interface UserRequestRow {
+  id: number; reference: string; kind: "contact" | "not_found"; status: UserRequestStatus;
+  id_card: string; full_name: string; phone: string; email: string; otp_channel: "sms" | "email" | ""; note: string;
+  acc_ids: string[]; approve_acc: string[]; files: number; submitted_at: string | null;
+  reason: string; reviewed_by: string; reviewed_at: string | null;
+  call_note: string; called_by: string; called_at: string | null;
+  first_by: string; first_at: string | null; first_by_me: boolean; notified: boolean;
+}
+export interface UserRequestList { items: UserRequestRow[]; counts: Record<UserRequestStatus, number>; dual_shares: number }
+export interface ReviewHolder { account_id: string; name: string; shares: number; masked_id: string; id_match: boolean; phone: string; email: string; bound_to: string }
+export interface RequestFile { id: number; filename: string; content_type: string; size: number }
+export interface UserRequestDetail { request: UserRequestRow; holders: ReviewHolder[]; suggest: ReviewHolder[]; files: RequestFile[]; warnings: string[] }
 export interface Stats {
   holders: number; total_shares: number; onsite_count: number; onsite_shares: number;
   online_count: number; online_shares: number; late_count: number; late_shares: number;

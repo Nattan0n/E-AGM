@@ -106,6 +106,13 @@ func (s *Server) Routes(e *echo.Echo) {
 	w.POST("/late", s.addLate)
 	w.POST("/novote", s.addNovote)
 	w.DELETE("/novote/:id", s.deleteNovote)
+	// OMD Review of User requests (PDPA data: not for viewers)
+	w.GET("/user-requests", s.listUserRequests)
+	w.GET("/user-requests/:id", s.getUserRequest)
+	w.GET("/user-requests/:id/files/:fid", s.userRequestFile)
+	w.POST("/user-requests/:id/call", s.userRequestCall)
+	w.POST("/user-requests/:id/approve", s.approveUserRequest)
+	w.POST("/user-requests/:id/reject", s.rejectUserRequest)
 
 	// ---- admin ----
 	ad := e.Group("/api/admin", jwtMW, s.activeUser, adminOnly)
@@ -140,6 +147,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	e.POST("/api/online/user-request", s.userRequestStart, otpLimit)
 	e.POST("/api/online/user-request/contact", s.userRequestContact, otpLimit, middleware.BodyLimit(UserRequestBodyLimit))
 	e.POST("/api/online/user-request/verify", s.userRequestVerify, otpLimit)
+	e.POST("/api/online/user-request/status", s.userRequestStatus, otpLimit)
 	// logged in (OTP passed): profile, first-visit consent, logout
 	hs := e.Group("/api/online", jwtMW, auth.RequireRole("holder"), s.holderSession)
 	hs.GET("/me", s.onlineMe)

@@ -1,5 +1,5 @@
 "use client";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { api, errMsg } from "@/lib/api";
 import { Icon } from "@/components/brand/Icon";
@@ -15,7 +15,13 @@ type Stage =
   | { k: "ready"; channels: SentTo[] }
   | { k: "form"; kind: "contact" | "not_found"; ticket: string }
   | { k: "otp"; kind: "contact" | "not_found"; ticket: string; masked: string; channel: Channel; expires: number; dev?: string }
-  | { k: "submitted"; kind: "contact" | "not_found"; reference: string };
+  | { k: "submitted"; kind: "contact" | "not_found" | ""; reference: string; ticket: string; result?: ReqStatus };
+
+type ReqStatus = { status: "pending" | "approved" | "rejected"; reference: string; reason?: string };
+/** The last request sent from this browser, so the holder can come back and check it (the ticket is the only key). */
+const SAVED = "eagm_user_request";
+const loadSaved = (): { ticket: string; reference: string } | null => { try { const v = JSON.parse(localStorage.getItem(SAVED) ?? "null"); return v?.ticket ? v : null; } catch { return null; } };
+const storeSaved = (v: { ticket: string; reference: string } | null) => { try { if (v) localStorage.setItem(SAVED, JSON.stringify(v)); else localStorage.removeItem(SAVED); } catch { /* private mode */ } };
 
 const MAX_FILES = 3;
 const MAX_SIZE = 3 << 20;
@@ -39,6 +45,21 @@ export default function RequestUser() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [saved, setSaved] = useState<{ ticket: string; reference: string } | null>(null);
+  useEffect(() => { const t = setTimeout(() => setSaved(loadSaved()), 0); return () => clearTimeout(t); }, []);
+
+  const checkStatus = async (ticket: string, reference: string) => {
+    setBusy(true); setError(""); setInfo("");
+    try {
+      const r = await api<ReqStatus>("/api/online/user-request/status", { method: "POST", body: { ticket }, session: null });
+      setStage((s) => ({ k: "submitted", kind: s.k === "submitted" ? s.kind : "", reference: r.reference, ticket, result: r }));
+      if (r.status === "pending") setInfo("คำขอยังอยู่ระหว่างตรวจสอบ");
+    } catch (err) {
+      if ((err as { status?: number }).status === 404) { storeSaved(null); setSaved(null); setStage({ k: "id" }); setError(`ไม่พบคำขอ ${reference} แล้ว กรุณาส่งคำขอใหม่`); }
+      else setError(errMsg(err));
+    }
+    setBusy(false);
+  };
 
   const fail = (e: unknown) => { setError(errMsg(e)); setBusy(false); };
 
@@ -90,7 +111,8 @@ export default function RequestUser() {
     setBusy(true); setError(""); setInfo("");
     try {
       const r = await api<{ reference: string }>("/api/online/user-request/verify", { method: "POST", body: { ticket: stage.ticket, otp }, session: null });
-      setStage({ k: "submitted", kind: stage.kind, reference: r.reference });
+      setStage({ k: "submitted", kind: stage.kind, reference: r.reference, ticket: stage.ticket });
+      storeSaved({ ticket: stage.ticket, reference: r.reference });
       setBusy(false);
     } catch (err) { setOtp(""); fail(err); }
   };
@@ -129,6 +151,9 @@ export default function RequestUser() {
           {err}
           <button type="submit" className={a.cta} disabled={busy}>{busy ? "กำลังตรวจสอบ..." : "ตรวจสอบและขอ User →"}</button>
         </form>
+        {saved && (
+          <button type="button" className={a.ghost} disabled={busy} onClick={() => checkStatus(saved.ticket, saved.reference)}>ตรวจสถานะคำขอ {saved.reference}</button>
+        )}
         <div className={a.linkrow}>มี User แล้ว? <Link href="/online" className={a.link}>เข้าสู่ระบบ</Link></div>
       </AuthFrame>
     );
@@ -150,6 +175,31 @@ export default function RequestUser() {
   }
 
   // ---------- submitted: waiting for OMD ----------
+  if (stage.k === "submitted" && stage.result?.status === "approved") {
+    return (
+      <AuthFrame title="คำขอได้รับอนุมัติ" steps={REQUEST_STEPS} step={4}>
+        <div className={a.done}>
+          <span className={a.doneIcon} aria-hidden="true"><Icon name="check" size={36} /></span>
+          <h3>เข้าสู่ระบบได้แล้ว</h3>
+          <p>คำขอ <b>{stage.reference}</b> ได้รับอนุมัติ ใช้ <b>เลขบัตรประชาชน / Passport</b> ของท่านเป็น User รหัส OTP จะส่งไปที่ช่องทางที่ท่านยืนยันไว้</p>
+        </div>
+        <Link href="/online" className={a.cta} onClick={() => storeSaved(null)}>ไปหน้าเข้าสู่ระบบ →</Link>
+      </AuthFrame>
+    );
+  }
+  if (stage.k === "submitted" && stage.result?.status === "rejected") {
+    return (
+      <AuthFrame title="คำขอไม่ได้รับอนุมัติ" steps={REQUEST_STEPS} step={4}>
+        <div className={a.done}>
+          <span className={`${a.doneIcon} ${a.wait}`} aria-hidden="true"><Icon name="x" size={34} /></span>
+          <h3>ไม่อนุมัติคำขอ {stage.reference}</h3>
+          {stage.result.reason && <p>เหตุผล: <b>{stage.result.reason}</b></p>}
+        </div>
+        <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>ท่านยังลงทะเบียนเข้าประชุมที่หน้างานในวันประชุมได้ หรือติดต่อฝ่ายผู้ถือหุ้น (OMD) หากมีข้อสงสัย</span></div>
+        <button type="button" className={a.ghost} onClick={() => { storeSaved(null); setSaved(null); backToId(); }}>ส่งคำขอใหม่</button>
+      </AuthFrame>
+    );
+  }
   if (stage.k === "submitted") {
     return (
       <AuthFrame title="ส่งคำขอเรียบร้อย" steps={REQUEST_STEPS} step={4}>
@@ -161,10 +211,13 @@ export default function RequestUser() {
         </div>
         <ol className={a.timeline}>
           <li className={a.tOk}><i>✓</i><span>ยืนยันช่องทางติดต่อด้วย OTP แล้ว</span></li>
-          <li><i>2</i><span>OMD ตรวจสอบ{stage.kind === "not_found" ? "เอกสารกับนายทะเบียนหลักทรัพย์" : "ข้อมูลกับทะเบียนผู้ถือหุ้น"}</span></li>
+          <li><i>2</i><span>OMD ตรวจสอบ{stage.kind === "not_found" ? "เอกสารกับนายทะเบียนหลักทรัพย์" : stage.kind === "contact" ? "ข้อมูลกับทะเบียนผู้ถือหุ้น" : "คำขอของท่าน"}</span></li>
           <li><i>3</i><span>อนุมัติ: ได้รับแจ้งทางอีเมล / มือถือที่ยืนยันไว้ แล้วเข้าสู่ระบบด้วยเลขบัตรได้ทันที</span></li>
         </ol>
         <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>หากไม่อนุมัติ ระบบจะแจ้งเหตุผลให้ทราบ และท่านยังลงทะเบียนที่หน้างานในวันประชุมได้</span></div>
+        {info && <div className={a.note} role="status"><Icon name="clock" size={17} /><span>{info}</span></div>}
+        {err}
+        <button type="button" className={a.cta} disabled={busy} onClick={() => checkStatus(stage.ticket, stage.reference)}>{busy ? "กำลังตรวจสอบ..." : "ตรวจสถานะคำขอ"}</button>
         <Link href="/online" className={a.ghost}>กลับหน้าเข้าสู่ระบบ</Link>
       </AuthFrame>
     );
