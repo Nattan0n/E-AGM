@@ -311,6 +311,7 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
         break;
       case "user-requests": {
         const reqs = (s.requests ??= seedRequests());
+        if (seg[1] === "count") { save(); return { pending: reqs.filter((r) => r.status === "pending").length }; }
         if (seg[1]) { const r = reqs.find((x) => String(x.id) === seg[1]); return r ? requestDetail(r) : err404(); }
         const status = q.get("status"), t = (q.get("q") ?? "").trim().toLowerCase();
         const items = reqs.filter((r) => (!status || status === "all" || r.status === status) &&

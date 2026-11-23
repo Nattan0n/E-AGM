@@ -96,6 +96,15 @@ func staffUID(c echo.Context) (int, string) {
 	return 0, ""
 }
 
+// countUserRequests: GET /api/user-requests/count - requests waiting for OMD (the menu badge polls it).
+func (s *Server) countUserRequests(c echo.Context) error {
+	var n int
+	if err := s.DB.QueryRowContext(c.Request().Context(), `SELECT COUNT(*) FROM user_request WHERE status='pending'`).Scan(&n); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, echo.Map{"pending": n})
+}
+
 // listUserRequests: GET /api/user-requests?status=pending|approved|rejected|all&q=
 func (s *Server) listUserRequests(c echo.Context) error {
 	ctx := c.Request().Context()

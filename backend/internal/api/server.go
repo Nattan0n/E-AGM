@@ -108,6 +108,7 @@ func (s *Server) Routes(e *echo.Echo) {
 	w.DELETE("/novote/:id", s.deleteNovote)
 	// OMD Review of User requests (PDPA data: not for viewers)
 	w.GET("/user-requests", s.listUserRequests)
+	w.GET("/user-requests/count", s.countUserRequests)
 	w.GET("/user-requests/:id", s.getUserRequest)
 	w.GET("/user-requests/:id/files/:fid", s.userRequestFile)
 	w.POST("/user-requests/:id/call", s.userRequestCall)

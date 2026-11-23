@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon, IconName } from "@/components/brand/Icon";
 import styles from "./Shell.module.css";
 
-export interface DockSlot { key: string; label: string; icon: IconName; href?: string }
+export interface DockSlot { key: string; label: string; icon: IconName; href?: string; badge?: number }
 
 const TOP = 44;      // room above the bar for the floating circle
 const BAR_H = 65;
@@ -110,6 +110,7 @@ export function MobileDock({ slots, active, menuKey, open, onMenu, onNavigate, a
             <>
               <span className={styles.dockIcon} style={{ visibility: on ? "hidden" : "visible" }}><Icon name={s.icon} size={22} /></span>
               <small className={on ? styles.dockLblOn : ""}>{s.label}</small>
+              {!!s.badge && <span className={`${styles.badge} ${styles.dockBadge}`} aria-label={`รอดำเนินการ ${s.badge} รายการ`}>{s.badge > 99 ? "99+" : s.badge}</span>}
             </>
           );
           return s.key === menuKey ? (

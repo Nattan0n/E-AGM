@@ -5,6 +5,7 @@ import { useApi } from "@/lib/hooks";
 import { MOCK, mockDocUrl } from "@/lib/mock";
 import type { HolderItem, RequestFile, ReviewHolder, UserRequestDetail, UserRequestList, UserRequestRow, UserRequestStatus } from "@/lib/types";
 import { Icon } from "@/components/brand/Icon";
+import { BADGE_EVENT } from "@/components/Shell";
 import { Avatar, Ctx, HolderPicker, Metrics, SearchIcon, StaffPage, StModal, styles } from "@/components/staff/common";
 import r from "./review.module.css";
 
@@ -142,7 +143,7 @@ function Detail({ id, canWrite, toast, onBack, onChanged, dual }: {
   if (error || !q || q.id !== id) return <div className={styles.card}><p className={styles.errText}>{error || "ไม่พบคำขอ"}</p></div>;
 
   const toggle = (acc: string) => setPicked(chosen.includes(acc) ? chosen.filter((a) => a !== acc) : [...chosen, acc]);
-  const after = async () => { await reload(); onChanged(); };
+  const after = async () => { await reload(); onChanged(); window.dispatchEvent(new Event(BADGE_EVENT)); };
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
     try { await fn(); toast(ok); await after(); return true; }

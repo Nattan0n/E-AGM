@@ -13,6 +13,14 @@ import styles from "./Shell.module.css";
 
 export interface NavItem { href: string; label: string; icon: IconName; section?: string }
 
+/** Pages that change what a menu badge counts fire this so the badge updates straight away. */
+export const BADGE_EVENT = "eagm:badges";
+
+function Badge({ n, className }: { n: number; className?: string }) {
+  if (!n) return null;
+  return <span className={`${styles.badge} ${className ?? ""}`} aria-label={`รอดำเนินการ ${n} รายการ`}>{n > 99 ? "99+" : n}</span>;
+}
+
 export const STAFF_NAV: NavItem[] = [
   { href: "/staff", label: "ค้นหา", icon: "search" },
   { href: "/staff/register", label: "ลงทะเบียน", icon: "register" },
@@ -74,6 +82,13 @@ export function Shell({ session, nav, children }: { session: StaffSession; nav: 
   const { data: fetched } = useApi<Meeting>("/api/meeting");
   useEffect(() => { if (fetched) meetingCache = fetched; }, [fetched]);
   const meeting = fetched ?? meetingCache;
+  // pending User requests: red badge on the menu (not for viewers, who cannot open the page)
+  const { data: reqCount, reload: reloadCount } = useApi<{ pending: number }>(session.role !== "viewer" ? "/api/user-requests/count" : null, "staff", 30000);
+  useEffect(() => {
+    window.addEventListener(BADGE_EVENT, reloadCount);
+    return () => window.removeEventListener(BADGE_EVENT, reloadCount);
+  }, [reloadCount]);
+  const badges: Record<string, number> = { "/staff/requests": reqCount?.pending ?? 0 };
   // Admin can do everything staff can: show the on-site (staff) menu under the admin one.
   // User requests hold ID cards and documents (PDPA): not for viewers.
   const items: NavItem[] = session.role === "admin" ? [...ADMIN_NAV, ...STAFF_NAV.map((n, i) => (i === 0 ? { ...n, section: "งานหน้างาน" } : n))]
@@ -137,9 +152,9 @@ export function Shell({ session, nav, children }: { session: StaffSession; nav: 
   const fan = fanLayout(menu.length);
   const MENU_KEY = "__menu";
   const dockSlots: DockSlot[] = [
-    ...pinned.slice(0, 2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href })),
-    { key: MENU_KEY, label: "เมนู", icon: "menu" as const },
-    ...pinned.slice(2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href })),
+    ...pinned.slice(0, 2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href, badge: badges[n.href] })),
+    { key: MENU_KEY, label: "เมนู", icon: "menu" as const, badge: menu.reduce((a, n) => a + (badges[n.href] ?? 0), 0) },
+    ...pinned.slice(2).map((n) => ({ key: n.href, label: n.label, icon: n.icon, href: n.href, badge: badges[n.href] })),
   ];
   const pinnedActive = dockSlots.findIndex((d) => d.href && (d.href === "/staff" || d.href === "/admin" ? cur === d.href : cur.startsWith(d.href)));
   const dockActive = fanOpen ? 2 : pinnedActive >= 0 ? pinnedActive : inMenu ? 2 : -1;
@@ -163,6 +178,7 @@ export function Shell({ session, nav, children }: { session: StaffSession; nav: 
               {n.section && <div className={styles.navSec}><span className={styles.lbl}>{n.section}</span></div>}
               <Link href={n.href} className={active(n.href) ? styles.on : ""} title={n.label}>
                 <Icon name={n.icon} size={19} /><span className={styles.lbl}>{n.label}</span>
+                <Badge n={badges[n.href] ?? 0} className={styles.navBadge} />
               </Link>
             </Fragment>
           ))}
@@ -202,7 +218,7 @@ export function Shell({ session, nav, children }: { session: StaffSession; nav: 
           {menu.map((n, i) => (
             <Link key={n.href} href={n.href} onClick={() => { setFanOpen(false); setNextPath(n.href); }} role="menuitem" className={`${styles.fanItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
               style={{ "--x": fan[i].x, "--y": fan[i].y, "--i": i } as React.CSSProperties}>
-              <span className={styles.fanCircle}><Icon name={n.icon} size={22} /></span>
+              <span className={styles.fanCircle}><Icon name={n.icon} size={22} /><Badge n={badges[n.href] ?? 0} className={styles.fanBadge} /></span>
               <span className={styles.fanLbl}>{n.label}</span>
             </Link>
           ))}
@@ -218,7 +234,7 @@ export function Shell({ session, nav, children }: { session: StaffSession; nav: 
                   {(list as NavItem[]).map((n, i) => (
                     <Link key={n.href} href={n.href} onClick={() => { setFanOpen(false); setNextPath(n.href); }} role="menuitem" className={`${styles.fanItem} ${styles.sheetItem} ${n.href.startsWith("/admin") ? styles.fanAdmin : styles.fanStaff} ${active(n.href) ? styles.fanOn : ""}`}
                       style={{ "--i": i } as React.CSSProperties}>
-                      <span className={styles.fanCircle}><Icon name={n.icon} size={22} /></span>
+                      <span className={styles.fanCircle}><Icon name={n.icon} size={22} /><Badge n={badges[n.href] ?? 0} className={styles.fanBadge} /></span>
                       <span className={styles.fanLbl}>{n.label}</span>
                     </Link>
                   ))}
