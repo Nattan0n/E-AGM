@@ -3,6 +3,7 @@
   position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
   --circle-size: 80%;
 }
+.defs { position: fixed; top: 0; left: 0; width: 0; height: 0; }
 
 /* dark: navy -> blue, vivid blobs blended hard-light (hero pages) */
 .dark {
@@ -43,9 +44,8 @@
   }
 }
 
-/* No blur / goo filter on the container: every blob already fades to transparent at 50% so it is soft by itself, and a
-   full-screen filter re-run on each animation frame was the single biggest CPU cost of the page (see docs: perf check). */
-.container { width: 100%; height: 100%; }
+.container { width: 100%; height: 100%; filter: blur(40px); }
+@media (min-width: 1024px) and (hover: hover) { .container { filter: url(#eagm-goo) blur(40px); } }
 
 .g1, .g2, .g3, .g4, .g5, .interactive { position: absolute; mix-blend-mode: var(--blending); will-change: transform; }
 .g1 { background: radial-gradient(circle at center, rgba(var(--color1), var(--o1)) 0, rgba(var(--color1), 0) 50%) no-repeat;
@@ -69,6 +69,10 @@
 @keyframes moveInCircle { 0% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } 100% { transform: rotate(360deg); } }
 @keyframes moveVertical { 0% { transform: translateY(-50%); } 50% { transform: translateY(50%); } 100% { transform: translateY(-50%); } }
 @keyframes moveHorizontal { 0% { transform: translateX(-50%) translateY(-10%); } 50% { transform: translateX(50%) translateY(10%); } 100% { transform: translateX(-50%) translateY(-10%); } }
+
+/* Inside the system (staff / admin / in-flow holder pages) the backdrop holds still: the same picture, but it stops
+   costing CPU all day. Paused (not removed), so it freezes where it is instead of jumping when leaving the login page. */
+.light :is(.g1, .g2, .g3, .g4, .g5) { animation-play-state: paused; }
 
 /* frozen while the user is navigating (see GradientBg.tsx) */
 :global(:root[data-busy="1"]) :is(.g1, .g2, .g3, .g4, .g5) { animation-play-state: paused; }
