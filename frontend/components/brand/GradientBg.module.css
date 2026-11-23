@@ -3,7 +3,6 @@
   position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
   --circle-size: 80%;
 }
-.defs { position: fixed; top: 0; left: 0; width: 0; height: 0; }
 
 /* dark: navy -> blue, vivid blobs blended hard-light (hero pages) */
 .dark {
@@ -44,8 +43,9 @@
   }
 }
 
-.container { width: 100%; height: 100%; filter: blur(40px); }
-@media (min-width: 1024px) and (hover: hover) { .container { filter: url(#eagm-goo) blur(40px); } }
+/* No blur / goo filter on the container: every blob already fades to transparent at 50% so it is soft by itself, and a
+   full-screen filter re-run on each animation frame was the single biggest CPU cost of the page (see docs: perf check). */
+.container { width: 100%; height: 100%; }
 
 .g1, .g2, .g3, .g4, .g5, .interactive { position: absolute; mix-blend-mode: var(--blending); will-change: transform; }
 .g1 { background: radial-gradient(circle at center, rgba(var(--color1), var(--o1)) 0, rgba(var(--color1), 0) 50%) no-repeat;
