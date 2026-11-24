@@ -16,9 +16,9 @@ const FEATURES: { icon: IconName; text: string }[] = [
  * brand + description on the left, form card on the right (same look as the staff login).
  * Desktop only - phones keep the app-style layout of each page.
  */
-export function AuthSplit({ children }: { children: ReactNode }) {
+export function AuthSplit({ children, wide }: { children: ReactNode; wide?: boolean }) {
   return (
-    <div className={s.root}>
+    <div className={`${s.root} ${wide ? s.wide : ""}`}>
       <section className={s.brand}>
         <div className={s.brandIn}>
           <div className={s.logo}><LogoMark size={72} /></div>

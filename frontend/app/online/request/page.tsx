@@ -250,18 +250,20 @@ export default function RequestUser() {
   // ---------- contact form (found without contact / not found) ----------
   const notFound = stage.kind === "not_found";
   return (
-    <AuthFrame title={notFound ? "ขอลงทะเบียนผู้ถือหุ้น" : "เพิ่มช่องทางรับ User"} steps={REQUEST_STEPS} step={2} back={backToId}
+    <AuthFrame title={notFound ? "ขอลงทะเบียนผู้ถือหุ้น" : "เพิ่มช่องทางรับ User"} steps={REQUEST_STEPS} step={2} back={backToId} wide={notFound}
       subtitle={notFound ? "ไม่พบเลขบัตรนี้ในทะเบียน ณ วันปิดสมุด กรุณาแนบเอกสารให้เจ้าหน้าที่ตรวจสอบ" : "พบชื่อของท่านในทะเบียน แต่ยังไม่มีอีเมล / เบอร์มือถือสำหรับส่ง User"}>
       <form onSubmit={submitForm} noValidate style={{ display: "contents" }}>
-        {notFound && (
-          <>
-            <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>ปกติผู้ที่ไม่มีชื่อ ณ วันปิดสมุดทะเบียนจะไม่มีสิทธิ์เข้าประชุม เจ้าหน้าที่จะตรวจสอบกับนายทะเบียนก่อน หากเพิ่งรับโอนหุ้นหรือเปลี่ยนชื่อ กรุณาแนบหลักฐาน</span></div>
+        <div className={`${a.cols} ${notFound ? a.colsWide : ""}`}>
+          {notFound && (
+            <div className={`${a.note} ${a.amber} ${a.span}`}><Icon name="warn" size={17} /><span>ปกติผู้ที่ไม่มีชื่อ ณ วันปิดสมุดทะเบียนจะไม่มีสิทธิ์เข้าประชุม เจ้าหน้าที่จะตรวจสอบกับนายทะเบียนก่อน หากเพิ่งรับโอนหุ้นหรือเปลี่ยนชื่อ กรุณาแนบหลักฐาน</span></div>
+          )}
+          <div className={a.col}>
+            {notFound && (
             <div className={a.field}>
               <label className={a.label} htmlFor="nm">ชื่อ-นามสกุล / ชื่อนิติบุคคล (ตามเอกสาร) <span className={a.req}>*</span></label>
               <div className={a.wrap}><Icon name="user" size={18} /><input id="nm" className={a.input} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="name" /></div>
             </div>
-          </>
-        )}
+            )}
         <div className={a.sec}>ช่องทางติดต่อ</div>
         <div className={a.grid2}>
           <div className={a.field}>
@@ -282,6 +284,8 @@ export default function RequestUser() {
           <span className={a.hint}>เมื่ออนุมัติ เจ้าหน้าที่จะแจ้งไปยังช่องทางที่ยืนยันแล้ว และใช้รับ OTP ตอนเข้าสู่ระบบ</span>
         </div>
 
+          </div>
+          <div className={a.col}>
         {notFound && (
           <>
             <div className={a.sec}>เอกสารประกอบ</div>
@@ -312,6 +316,8 @@ export default function RequestUser() {
         <div className={a.field}>
           <label className={a.label} htmlFor="nt">หมายเหตุถึงเจ้าหน้าที่ <span className={a.opt}>(ถ้ามี)</span></label>
           <textarea id="nt" className={a.area} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="เช่น เวลาที่สะดวกให้ติดต่อกลับ" />
+        </div>
+          </div>
         </div>
         <div className={a.note}><Icon name="lock" size={17} /><span>ข้อมูลและเอกสารใช้เพื่อยืนยันสิทธิ์เข้าประชุมเท่านั้น และได้รับการคุ้มครองตาม PDPA</span></div>
         {err}

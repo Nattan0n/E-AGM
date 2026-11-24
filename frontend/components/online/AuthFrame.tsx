@@ -20,6 +20,8 @@ export interface AuthFrameProps {
   /** Back target; a string is a route, a function is called. */
   back?: string | (() => void);
   backLabel?: string;
+  /** Desktop: a wider card (long forms laid out in two columns). */
+  wide?: boolean;
   children: ReactNode;
 }
 
@@ -31,15 +33,15 @@ const Arrow = () => (
  * Frame of the shareholder entry screens (login, OTP, request a User, first visit).
  * Phone: brand hero with step dots and an overlapping card. Web: the AuthSplit card with a numbered stepper.
  */
-export function AuthFrame({ title, subtitle, steps, step, back, backLabel = "ย้อนกลับ", children }: AuthFrameProps) {
+export function AuthFrame({ title, subtitle, steps, step, back, backLabel = "ย้อนกลับ", wide, children }: AuthFrameProps) {
   const desktop = useIsDesktop();
   const router = useRouter();
   const goBack = back ? () => (typeof back === "string" ? router.push(back) : back()) : undefined;
 
   if (desktop) {
     return (
-      <AuthSplit>
-        <div className={a.dwrap}>
+      <AuthSplit wide={wide}>
+        <div className={`${a.dwrap} ${wide ? a.dwrapWide : ""}`}>
           {goBack && <button type="button" className={a.dback} onClick={goBack}>← {backLabel}</button>}
           {steps && step ? (
             <ol className={a.stepper} aria-label={`ขั้นที่ ${step} จาก ${steps.length}`}>
