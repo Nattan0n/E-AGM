@@ -235,6 +235,10 @@ func (v *env) holderLogin(acc string) string {
 	// account_id picks the account when one ID card holds several
 	code, m, b := v.do("POST", "/api/online/login", "", map[string]any{"id_card": tax, "account_id": acc})
 	v.must(code, 200, "online login "+acc, b)
+	if opts, ok := m["choose_channel"].([]any); ok { // both channels on file: the holder picks one
+		code, m, b = v.do("POST", "/api/online/login", "", map[string]any{"id_card": tax, "account_id": acc, "channel": opts[0].(map[string]any)["channel"]})
+		v.must(code, 200, "online login (channel) "+acc, b)
+	}
 	code, m, b = v.do("POST", "/api/online/verify-otp", "", map[string]any{"account_id": m["account_id"], "otp": m["dev_otp"]})
 	v.must(code, 200, "verify "+acc, b)
 	tok := m["token"].(string)
@@ -245,6 +249,54 @@ func (v *env) holderLogin(acc string) string {
 		v.must(code, 200, "consent", b)
 	}
 	return tok
+}
+
+// The OTP goes to the channel the holder chooses; with both on file nothing is sent until one is chosen.
+func TestOnlineLoginChannelChoice(t *testing.T) {
+	v := setup(t)
+	const acc = "TRU-000018"
+	var tax, phone, email string
+	v.db.QueryRow(`SELECT COALESCE(I_tax,''),COALESCE(M_phone,''),COALESCE(I_Email,'') FROM holder WHERE Account_id=?`, acc).Scan(&tax, &phone, &email)
+	v.db.Exec(`UPDATE holder SET M_phone='0812345678',I_Email='someone@example.com' WHERE Account_id=?`, acc)
+	t.Cleanup(func() {
+		v.db.Exec(`UPDATE holder SET M_phone=?,I_Email=? WHERE Account_id=?`, nullStr(phone), nullStr(email), acc)
+		v.db.Exec(`DELETE FROM online_registration WHERE acc_id=?`, acc)
+	})
+	idc := nonDigit.ReplaceAllString(tax, "")
+	body := func(ch string) map[string]any {
+		m := map[string]any{"id_card": idc, "account_id": acc}
+		if ch != "" {
+			m["channel"] = ch
+		}
+		return m
+	}
+	code, m, b := v.do("POST", "/api/online/login", "", body(""))
+	v.must(code, 200, "login without channel", b)
+	if m["sent"] == true || len(m["choose_channel"].([]any)) != 2 {
+		t.Fatalf("expected the two channels to choose from: %v", m)
+	}
+	var sentBefore int
+	v.db.QueryRow(`SELECT COUNT(*) FROM audit_log WHERE acc_id=? AND action='otp_request'`, acc).Scan(&sentBefore)
+	if sentBefore != 0 {
+		t.Errorf("asking which channel must not count as an OTP request (%d)", sentBefore)
+	}
+	code, m, b = v.do("POST", "/api/online/login", "", body("email"))
+	v.must(code, 200, "login by e-mail", b)
+	ch := m["channels"].([]any)
+	if m["sent"] != true || len(ch) != 1 || ch[0].(map[string]any)["channel"] != "email" {
+		t.Errorf("only the chosen channel should get the code: %v", m)
+	}
+	code, _, _ = v.do("POST", "/api/online/login", "", body("fax"))
+	v.must(code, 400, "unknown channel", nil)
+	// only one channel on file: used without asking
+	v.db.Exec(`UPDATE holder SET I_Email=NULL WHERE Account_id=?`, acc)
+	code, m, b = v.do("POST", "/api/online/login", "", body(""))
+	v.must(code, 200, "login with a single channel", b)
+	if m["sent"] != true || m["channels"].([]any)[0].(map[string]any)["channel"] != "sms" {
+		t.Errorf("single channel should be used directly: %v", m)
+	}
+	code, _, _ = v.do("POST", "/api/online/login", "", body("email"))
+	v.must(code, 400, "channel not on file", nil)
 }
 
 func TestOnlineLoginNeedsAContactOnFile(t *testing.T) {

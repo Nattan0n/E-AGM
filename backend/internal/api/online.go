@@ -117,15 +117,17 @@ func holdersByIDCard(ctx context.Context, d *sql.DB, idc, acc string) ([]idCardH
 	return out, rows.Err()
 }
 
-// onlineLogin (flow page 2): the holder types the ID card / passport number (the User); the OTP goes to the e-mail
-// and mobile on file of that account. When one ID card holds several accounts and none is chosen yet, the accounts
-// are listed so the holder can pick one. Every reason a User cannot be used gives the same message, and wrong tries
+// onlineLogin (flow page 2): the holder types the ID card / passport number (the User); the OTP goes to the mobile
+// (sms) or e-mail on file of that account, whichever the holder chooses. When the account has both and no channel is
+// chosen yet, nothing is sent and the two (masked) are listed so the holder can pick one; with a single channel on file
+// that one is used. When one ID card holds several accounts and none is chosen yet, the accounts are listed first. Every reason a User cannot be used gives the same message, and wrong tries
 // are counted (5 per 15 minutes).
 func (s *Server) onlineLogin(c echo.Context) error {
 	ctx := c.Request().Context()
 	var r struct {
 		IDCard    string `json:"id_card"`
 		AccountID string `json:"account_id"`
+		Channel   string `json:"channel"` // sms | email; empty = ask (when both are on file)
 	}
 	if err := c.Bind(&r); err != nil {
 		return bad("ข้อมูลไม่ถูกต้อง")
@@ -188,6 +190,29 @@ func (s *Server) onlineLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusTooManyRequests, "ขอ OTP ครบ 3 ครั้งในชั่วโมงนี้แล้ว กรุณารอสักครู่")
 	}
 
+	// which channel gets the code
+	onFile := map[string]string{}
+	options := []echo.Map{}
+	if phone != "" {
+		onFile["sms"] = phone
+		options = append(options, echo.Map{"channel": "sms", "masked": maskTo("sms", phone)})
+	}
+	if email != "" {
+		onFile["email"] = email
+		options = append(options, echo.Map{"channel": "email", "masked": maskTo("email", email)})
+	}
+	channel := strings.ToLower(strings.TrimSpace(r.Channel))
+	if channel == "" {
+		if len(options) > 1 { // both on file: the holder chooses, nothing is sent yet
+			return c.JSON(http.StatusOK, echo.Map{"choose_channel": options, "account_id": acc})
+		}
+		channel = options[0]["channel"].(string)
+	}
+	to, ok := onFile[channel]
+	if !ok {
+		return bad("ช่องทางที่เลือกไม่มีในทะเบียน")
+	}
+
 	code, err := newOTP()
 	if err != nil {
 		return err
@@ -214,21 +239,12 @@ func (s *Server) onlineLogin(c echo.Context) error {
 	}
 	identityGuard.Reset(idKey)
 
-	sent := []echo.Map{}
-	for _, ch := range []struct{ channel, to string }{{"sms", phone}, {"email", email}} {
-		if ch.to == "" {
-			continue
-		}
-		if err := s.OTP.Send(ch.channel, ch.to, code); err != nil {
-			log.Printf("OTP send %s for %s failed: %v", ch.channel, acc, err)
-			continue
-		}
-		sent = append(sent, echo.Map{"channel": ch.channel, "masked": maskTo(ch.channel, ch.to)})
-	}
-	if len(sent) == 0 {
+	if err := s.OTP.Send(channel, to, code); err != nil {
+		log.Printf("OTP send %s for %s failed: %v", channel, acc, err)
 		return echo.NewHTTPError(http.StatusBadGateway, "ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่")
 	}
-	s.audit(c, acc, "otp_request", echo.Map{"channels": len(sent)})
+	sent := []echo.Map{{"channel": channel, "masked": maskTo(channel, to)}}
+	s.audit(c, acc, "otp_request", echo.Map{"channel": channel})
 	resp := echo.Map{"sent": true, "channels": sent, "expires_in": 600, "account_id": acc}
 	if s.DevOTP {
 		resp["dev_otp"] = code

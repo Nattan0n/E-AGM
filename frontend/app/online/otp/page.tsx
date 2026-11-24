@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { api, errMsg, setSession } from "@/lib/api";
 import { Icon } from "@/components/brand/Icon";
 import { AuthFrame, LOGIN_STEPS } from "@/components/online/AuthFrame";
-import { LoginResp, Pending, clearPending, maskIdCard, readPending, writePending } from "@/components/online/hooks";
+import { LoginResp, Pending, SentTo, clearPending, maskIdCard, readPending, writePending } from "@/components/online/hooks";
 import s from "@/components/online/online.module.css";
 import a from "@/components/online/auth.module.css";
 
@@ -87,13 +87,16 @@ export default function OnlineOtp() {
     if (d.length === 6) void verify(d);
   };
 
-  const resend = async () => {
+  // a new code, on the same channel or (switchTo) the other one on file
+  const resend = async (switchTo?: SentTo) => {
     if (!pending || busy || cooldown > 0 || limitReached) return;
+    const channel = switchTo?.channel ?? pending.channel;
     setBusy(true); setError(""); setInfo("");
     try {
-      const r = await api<LoginResp>("/api/online/login", { method: "POST", body: { id_card: pending.id_card, account_id: pending.account_id }, session: null });
+      const r = await api<LoginResp>("/api/online/login", { method: "POST", body: { id_card: pending.id_card, account_id: pending.account_id, ...(channel ? { channel } : {}) }, session: null });
       const t = Date.now();
-      const p: Pending = { ...pending, channels: r.channels ?? pending.channels, expires_at: t + (r.expires_in ?? 600) * 1000, dev_otp: r.dev_otp, resends: [...recent, t] };
+      const alt = switchTo ? pending.channels[0] : pending.alt; // after a switch the old channel becomes the alternative
+      const p: Pending = { ...pending, channels: r.channels ?? pending.channels, channel: r.channels?.[0]?.channel ?? channel, alt, expires_at: t + (r.expires_in ?? 600) * 1000, dev_otp: r.dev_otp, resends: [...recent, t] };
       writePending(p); setPending(p); setNow(t);
       setDigits(EMPTY);
       setInfo("ส่งรหัส OTP ใหม่แล้ว รหัสเดิมใช้ไม่ได้");
@@ -109,7 +112,7 @@ export default function OnlineOtp() {
     <AuthFrame title="ยืนยันรหัส OTP" subtitle={pending ? `เลขบัตร ${maskIdCard(pending.id_card ?? "")}` : undefined} steps={LOGIN_STEPS} step={2} back="/online" backLabel="เปลี่ยนเลขบัตร">
       <div className={a.otpHead}>
         <span className={a.shield} aria-hidden="true"><Icon name="shield" size={30} /></span>
-        <span className={a.hint} style={{ fontSize: 13 }}>ระบบส่งรหัส 6 หลักไปที่ช่องทางที่ลงทะเบียนไว้</span>
+        <span className={a.hint} style={{ fontSize: 13 }}>ระบบส่งรหัส 6 หลักไปที่ช่องทางที่ท่านเลือก</span>
       </div>
       <div className={a.sentList}>
         {(pending?.channels ?? []).map((c) => (
@@ -139,6 +142,14 @@ export default function OnlineOtp() {
           {limitReached ? "ขอครบ 3 ครั้งในชั่วโมงนี้แล้ว" : cooldown > 0 ? `ขอใหม่ได้ใน ${cooldown} วินาที` : "ขอรหัสใหม่"}
         </button>
       </div>
+      {pending?.alt && (
+        <div className={a.resend}>
+          ช่องทางนี้ไม่สะดวก?{" "}
+          <button type="button" disabled={busy || cooldown > 0 || limitReached} onClick={() => void resend(pending.alt)}>
+            ส่งทาง{pending.alt.channel === "email" ? "อีเมล" : " SMS"} ({pending.alt.masked}) แทน
+          </button>
+        </div>
+      )}
       <div className={a.meta}><span>กรอกผิดได้ไม่เกิน 5 ครั้งต่อรหัส</span><span>ขอแล้ว {recent.length}/3 ครั้ง (1 ชม.)</span></div>
       <div className={`${a.note} ${a.amber}`}><Icon name="warn" size={17} /><span>อย่าเปิดเผยรหัส OTP ให้ผู้อื่น เจ้าหน้าที่จะไม่ขอรหัส OTP จากท่าน</span></div>
 

@@ -23,9 +23,42 @@ def test_otp_page_shows_masked_channels_and_id(page: Page):
     Login(page).open().submit(NEW_HOLDER)
     Otp(page).wait()
     expect(page.get_by_text(re.compile(r"เลขบัตร •+" + NEW_HOLDER[-4:]))).to_be_visible()
-    expect(page.get_by_text(re.compile(r"X{4,}\d{4}"))).to_be_visible()  # mobile number, masked
-    expect(page.get_by_text(re.compile(r"\*{3,}@"))).to_be_visible()  # e-mail, masked
+    expect(page.get_by_text(re.compile(r"X{4,}\d{4}")).first).to_be_visible()  # mobile number, masked (the channel chosen)
     expect(page.get_by_text(re.compile(r"รหัสหมดอายุใน"))).to_be_visible()
+
+
+def test_holder_chooses_where_the_otp_goes(page: Page):
+    login = Login(page).open()
+    login.submit(NEW_HOLDER, via=None)
+    # both channels are on file: nothing is sent until one is chosen
+    expect(page.get_by_role("heading", name="รับรหัส OTP ทางไหน")).to_be_visible()
+    expect(page.get_by_role("button", name=re.compile("ส่งทาง SMS"))).to_be_visible()
+    expect(page.get_by_role("button", name=re.compile("ส่งทางอีเมล"))).to_be_visible()
+    expect(page).to_have_url(url("/online"))
+    page.get_by_role("button", name=re.compile("ส่งทางอีเมล")).click()
+    Otp(page).wait()
+    # (the login page stays mounted but hidden behind the OTP page: look at what is visible)
+    expect(page.get_by_text(re.compile(r"\*{3,}@")).locator("visible=true")).to_have_count(1)  # e-mail, masked
+    expect(page.get_by_text(re.compile(r"X{4,}\d{4}")).locator("visible=true")).to_have_count(1)  # the mobile appears only as the "send by SMS instead" offer
+    expect(page.get_by_role("button", name=re.compile("ส่งทาง SMS .* แทน"))).to_be_visible()
+
+
+def test_back_from_the_channel_question_returns_to_the_id_card(page: Page):
+    Login(page).open().submit(NEW_HOLDER, via=None)
+    expect(page.get_by_role("heading", name="รับรหัส OTP ทางไหน")).to_be_visible()
+    page.get_by_role("button", name=re.compile("เปลี่ยนเลขบัตร")).click()
+    expect(page.get_by_role("heading", name="เข้าสู่ระบบผู้ถือหุ้น")).to_be_visible()
+
+
+def test_otp_can_be_sent_the_other_way(page: Page):
+    page.clock.install()  # the new code is allowed after a minute: skip the wait
+    Login(page).open().submit(NEW_HOLDER, via="sms")
+    Otp(page).wait()
+    page.clock.fast_forward("01:05")
+    page.get_by_role("button", name=re.compile("ส่งทางอีเมล .* แทน")).click()
+    expect(page.get_by_role("status").filter(has_text="ส่งรหัส OTP ใหม่แล้ว")).to_be_visible()
+    expect(page.get_by_text(re.compile(r"\*{3,}@")).first).to_be_visible()  # now the e-mail got the code
+    expect(page.get_by_role("button", name=re.compile("ส่งทาง SMS .* แทน"))).to_be_visible()  # and SMS is the alternative
 
 
 def test_pdpa_must_be_accepted_before_choosing_a_vote_method(page: Page):

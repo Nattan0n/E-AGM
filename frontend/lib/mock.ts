@@ -390,7 +390,19 @@ async function mockApiRaw(path: string, method: string, body: Record<string, unk
         const h = HOLDERS.find((x) => x.id_card === idc) ?? (bound ? hold(bound) : undefined);
         if (!h) err(401, "ไม่สามารถเข้าสู่ระบบด้วยเลขบัตรนี้ได้ กรุณาตรวจสอบเลขบัตร หรือกด \"ขอ User\"");
         if (s.regs[h!.account_id]?.channel === "onsite") err(409, "ท่านลงทะเบียนเข้าประชุมที่หน้างาน (Onsite) แล้ว");
-        return { sent: true, account_id: h!.account_id, channels: [{ channel: "sms", masked: "XXXXXX" + h!.phone.slice(-4) }, { channel: "email", masked: "h*****@example.com" }], expires_in: 600, dev_otp: "123456" };
+        // channels on file: the sample holders have both; a holder approved by OMD has what the request confirmed
+        const c = bound ? s.contacts?.[bound] : undefined;
+        const onFile: { channel: "sms" | "email"; masked: string }[] = [];
+        if (!c || c.phone) onFile.push({ channel: "sms", masked: "XXXXXX" + (c?.phone || h!.phone).slice(-4) });
+        if (!c || c.email) onFile.push({ channel: "email", masked: c?.email ? c.email[0] + "*****" + c.email.slice(c.email.indexOf("@")) : "h*****@example.com" });
+        let channel = String(b.channel ?? "");
+        if (!channel) {
+          if (onFile.length > 1) return { choose_channel: onFile, account_id: h!.account_id }; // both on file: ask, send nothing
+          channel = onFile[0].channel;
+        }
+        const chosen = onFile.find((o) => o.channel === channel);
+        if (!chosen) err(400, "ช่องทางที่เลือกไม่มีในทะเบียน");
+        return { sent: true, account_id: h!.account_id, channels: [chosen], expires_in: 600, dev_otp: "123456" };
       }
       if (seg[1] === "verify-otp") {
         if (String(b.otp) !== "123456") err(401, "OTP ไม่ถูกต้องหรือหมดอายุ");

@@ -166,7 +166,7 @@ export default function RequestUser() {
         <div className={a.done}>
           <span className={a.doneIcon} aria-hidden="true"><Icon name="check" size={36} /></span>
           <h3>ไม่ต้องขอ User เพิ่ม</h3>
-          <p>เลขบัตรของท่านอยู่ในทะเบียนและมีช่องทางติดต่อแล้ว ใช้ <b>เลขบัตรนี้</b> เข้าสู่ระบบได้เลย รหัส OTP จะส่งไปที่ <b>{sentToText(stage.channels)}</b></p>
+          <p>เลขบัตรของท่านอยู่ในทะเบียนและมีช่องทางติดต่อแล้ว ใช้ <b>เลขบัตรนี้</b> เข้าสู่ระบบได้เลย ท่านเลือกรับรหัส OTP ทางช่องทางใดช่องทางหนึ่งได้: <b>{sentToText(stage.channels)}</b></p>
         </div>
         <div className={a.note}><Icon name="warn" size={17} /><span>ถ้าช่องทางนี้ไม่ใช่ของท่านแล้ว กรุณาติดต่อเจ้าหน้าที่นักลงทุนสัมพันธ์ หรือลงทะเบียนที่หน้างานในวันประชุม</span></div>
         <Link href="/online" className={a.cta}>ไปหน้าเข้าสู่ระบบ →</Link>

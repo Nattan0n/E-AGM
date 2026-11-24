@@ -38,10 +38,11 @@ export interface SentTo { channel: Channel; masked: string }
 /** One account under the ID card (when it holds several, the holder picks one). */
 export interface AccountChoice { account_id: string; shares: number; active: boolean }
 /** POST /api/online/login {id_card, account_id?} - either the OTP was sent, or the accounts to choose from. */
-export interface LoginResp { sent?: boolean; channels?: SentTo[]; expires_in?: number; account_id?: string; dev_otp?: string; choose?: AccountChoice[] }
+export interface LoginResp { sent?: boolean; channels?: SentTo[]; expires_in?: number; account_id?: string; dev_otp?: string; choose?: AccountChoice[]; choose_channel?: SentTo[] }
 
 /** Login waiting for its OTP (between /online and /online/otp). */
-export interface Pending { id_card: string; account_id: string; channels: SentTo[]; expires_at: number; dev_otp?: string; resends?: number[] }
+/** channel = where the current code went; alt = the other channel on file (when both are), for "send it the other way". */
+export interface Pending { id_card: string; account_id: string; channels: SentTo[]; expires_at: number; dev_otp?: string; resends?: number[]; channel?: Channel; alt?: SentTo }
 
 /** "x-xxxx-xxxxx-12-3" style: only the last 4 digits of the ID card are shown. */
 export const maskIdCard = (v: string) => { const d = v.replace(/\D/g, ""); return d.length <= 4 ? d : "•".repeat(d.length - 4) + d.slice(-4); };
@@ -68,4 +69,4 @@ export const ME_REFRESH = "eagm-me-refresh";
 export const refreshMe = () => { if (typeof window !== "undefined") window.dispatchEvent(new Event(ME_REFRESH)); };
 
 /** Masked list for display: "08XXXX1234 และ h***@mail.com". */
-export const sentToText = (c: SentTo[]) => c.map((x) => x.masked).join(" และ ");
+export const sentToText = (c: SentTo[]) => c.map((x) => x.masked).join(" หรือ ");

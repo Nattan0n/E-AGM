@@ -6,16 +6,16 @@ import { api, errMsg, fmt } from "@/lib/api";
 import { MOCK } from "@/lib/mock";
 import { Icon } from "@/components/brand/Icon";
 import { AuthFrame, LOGIN_STEPS } from "@/components/online/AuthFrame";
-import { AccountChoice, LoginResp, takeNotice, writePending } from "@/components/online/hooks";
+import { AccountChoice, Channel, LoginResp, SentTo, takeNotice, writePending } from "@/components/online/hooks";
 import a from "@/components/online/auth.module.css";
 
 // Dev-only prefill: TRU-000005 from the seed data, or a not-yet-registered sample holder in mock mode; empty in production.
 const DEV_ID = process.env.NODE_ENV !== "development" ? "" : MOCK ? "1100000102947" : "1000100039595";
 
 /** Remember the login that waits for its OTP (read by /online/otp). */
-function savePending(idCard: string, accountId: string, r: LoginResp) {
+function savePending(idCard: string, accountId: string, r: LoginResp, alt?: SentTo) {
   const t = Date.now();
-  writePending({ id_card: idCard, account_id: accountId, channels: r.channels ?? [], expires_at: t + (r.expires_in ?? 600) * 1000, dev_otp: r.dev_otp, resends: [t] });
+  writePending({ id_card: idCard, account_id: accountId, channels: r.channels ?? [], expires_at: t + (r.expires_in ?? 600) * 1000, dev_otp: r.dev_otp, resends: [t], channel: r.channels?.[0]?.channel, alt });
 }
 
 /** Flow page 2 - log in with the ID card / passport number (the User); the OTP goes to the e-mail / mobile on file. */
@@ -23,6 +23,7 @@ export default function OnlineLogin() {
   const router = useRouter();
   const [idCard, setIdCard] = useState(DEV_ID);
   const [choices, setChoices] = useState<AccountChoice[] | null>(null);
+  const [via, setVia] = useState<{ accountId: string; options: SentTo[] } | null>(null); // account has both channels: pick one
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -30,19 +31,21 @@ export default function OnlineLogin() {
   // expired session): clear the "busy" left from the earlier submit, and show the one-shot notice. The notice is taken
   // inside the timer so a cancelled run (dev double effects) does not consume it without showing it.
   useEffect(() => {
-    const t = setTimeout(() => { setBusy(false); setChoices(null); const n = takeNotice(); if (n) setNotice(n); }, 0);
+    const t = setTimeout(() => { setBusy(false); setChoices(null); setVia(null); const n = takeNotice(); if (n) setNotice(n); }, 0);
     return () => clearTimeout(t);
   }, []);
 
-  const login = async (accountId = "") => {
+  const login = async (accountId = "", channel?: Channel) => {
     setError(""); setNotice("");
     const idc = idCard.replace(/\D/g, "");
     if (idc.length < 6) { setError("กรุณากรอกเลขประจำตัวประชาชน / Passport ให้ถูกต้อง"); return; }
     setBusy(true);
     try {
-      const r = await api<LoginResp>("/api/online/login", { method: "POST", body: { id_card: idc, account_id: accountId }, session: null });
+      const r = await api<LoginResp>("/api/online/login", { method: "POST", body: { id_card: idc, account_id: accountId, ...(channel ? { channel } : {}) }, session: null });
       if (r.choose) { setChoices(r.choose); setBusy(false); return; }
-      savePending(idc, r.account_id ?? accountId, r);
+      if (r.choose_channel) { setVia({ accountId: r.account_id ?? accountId, options: r.choose_channel }); setBusy(false); return; }
+      const other = via?.options.find((o) => o.channel !== channel);
+      savePending(idc, r.account_id ?? accountId, r, other);
       router.push("/online/otp");
     } catch (err) {
       setError(errMsg(err));
@@ -51,6 +54,26 @@ export default function OnlineLogin() {
   };
   const submit = (e: FormEvent) => { e.preventDefault(); void login(); };
   const errBox = error && <div className={a.err} role="alert"><Icon name="warn" size={16} /><span>{error}</span></div>;
+
+  // the account has both an e-mail and a mobile on file: the holder chooses where the code goes
+  if (via) {
+    return (
+      <AuthFrame title="รับรหัส OTP ทางไหน" subtitle="เลือกช่องทางที่สะดวก ระบบจะส่งรหัสไปที่ช่องทางเดียวที่เลือก" steps={LOGIN_STEPS} step={1}
+        back={() => { setVia(null); setError(""); }} backLabel="เปลี่ยนเลขบัตร">
+        <div className={a.accounts}>
+          {via.options.map((o) => (
+            <button key={o.channel} type="button" className={a.account} disabled={busy} onClick={() => void login(via.accountId, o.channel)}>
+              <span className={a.accIcon} aria-hidden="true"><Icon name={o.channel === "email" ? "mail" : "phone"} size={20} /></span>
+              <span className={a.accText}><b>{o.channel === "email" ? "ส่งทางอีเมล" : "ส่งทาง SMS"}</b><small>{o.masked}</small></span>
+              <span aria-hidden="true">→</span>
+            </button>
+          ))}
+        </div>
+        {errBox}
+        {busy && <div className={a.hint} style={{ textAlign: "center" }}>กำลังส่ง OTP...</div>}
+      </AuthFrame>
+    );
+  }
 
   // one ID card, several accounts: pick the one to attend with
   if (choices) {
@@ -88,7 +111,7 @@ export default function OnlineLogin() {
 
         <div className={a.note}>
           <Icon name="shield" size={17} />
-          <span>ระบบจะส่งรหัส OTP ไปยัง <b>อีเมลและเบอร์มือถือที่ลงทะเบียนไว้</b> กับบริษัท (แสดงแบบปิดบังบางส่วน)</span>
+          <span>ระบบจะส่งรหัส OTP ไปยัง <b>เบอร์มือถือหรืออีเมลที่ลงทะเบียนไว้</b> กับบริษัท ตามช่องทางที่ท่านเลือก (แสดงแบบปิดบังบางส่วน)</span>
         </div>
 
         {notice && <div className={`${a.note} ${a.amber}`} role="status"><Icon name="warn" size={17} /><span>{notice}</span></div>}

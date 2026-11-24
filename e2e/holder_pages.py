@@ -49,9 +49,17 @@ class Login:
         ready(self.page)
         return self
 
-    def submit(self, id_card: str):
+    def submit(self, id_card: str, via: str | None = "sms"):
+        """Ask for the OTP. An account with both channels on file is asked where to send it: via picks the answer
+        ("sms" / "email"); via=None leaves that question on screen."""
         fill(self.id_card, id_card)
         self.request_otp.click()
+        if via:
+            chooser = self.page.get_by_role("button", name=re.compile("ส่งทาง SMS|ส่งทางอีเมล"))
+            # the question, the OTP page or an error: whichever comes first
+            expect(chooser.first.or_(self.page.get_by_role("heading", name="ยืนยันรหัส OTP")).or_(self.error)).to_be_visible()
+            if chooser.first.is_visible():
+                self.page.get_by_role("button", name=re.compile("ส่งทาง SMS" if via == "sms" else "ส่งทางอีเมล")).click()
 
 
 class Otp:
